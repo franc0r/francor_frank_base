@@ -12,8 +12,8 @@
 
 #pragma once
 
-#include <francor_drive_interface/rmd_x8_drive.h>
-#include <francor_drive_interface/socketcan.h>
+#include <francor_can/socketcan.h>
+#include <francor_drive/rmd_x8_drive.h>
 
 #include <chrono>
 #include <string>
@@ -76,7 +76,7 @@ class BaseController {
     BaseState _pre_error_state = {BASE_STS_INIT};
     std::chrono::steady_clock::time_point _error_time_point = {};
 
-    std::shared_ptr<francor::drive::CANInterface> _can_if = {};
+    std::shared_ptr<francor::can::CAN> _can_if = {};
     std::array<std::shared_ptr<francor::drive::Drive>, BASE_NUM_DRIVES> _drives = {};
 
     const std::string _logger = {"FrancorBaseController"};

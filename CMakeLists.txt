@@ -32,7 +32,7 @@ target_include_directories(frank_base PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(frank_base francor_drive)
+target_link_libraries(frank_base francor-drive)
 ament_target_dependencies(frank_base rclcpp std_msgs)
 
 install(TARGETS frank_base

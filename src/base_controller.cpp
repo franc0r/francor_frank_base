@@ -10,9 +10,11 @@
  *
  */
 
-#include "francor_robot_base/base_controller.h"
+#include "francor_frank_base/base_controller.h"
 
 #include "rclcpp/rclcpp.hpp"
+
+using namespace francor::can;
 
 std::string getBaseStateDesc(const BaseState state) {
     switch (state) {
@@ -62,8 +64,8 @@ auto BaseController::isCANRunning() {
     if (_can_if) {
         try {
             can_running = _can_if->isDeviceUp();
-        } catch (const std::runtime_error& error) {
-            setErrorState("Error reading CAN interface state! Maybe disconnected?");
+        } catch (const can_exception& e) {
+            setErrorState(e.what());
         }
     }
 
@@ -104,9 +106,9 @@ void BaseController::runStsOpenCom() {
     bool can_ok = {false};
 
     try {
-        _can_if = std::make_shared<francor::drive::SocketCANInterface>(_config.can);
+        _can_if = std::make_shared<SocketCAN>(_config.can);
         can_ok = true;
-    } catch (...) {
+    } catch (const can_exception& e) {
         _can_if.reset();
         can_ok = false;
     }

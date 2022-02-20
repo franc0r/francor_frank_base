@@ -4,8 +4,8 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
         Node(
-            package='francor_robot_base_ros2',
-            namespace='francor_robot_base',
+            package='francor_frank_base',
+            namespace='francor_frank_base',
             executable='frank_base',
             name='frank_base',
             output="screen",
