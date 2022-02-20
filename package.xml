@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>francor_robot_base_ros2</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <name>francor_frank_base</name>
+  <version>0.0.1</version>
+  <description>Base Interface of FRANCORs Robot FRANK.</description>
   <maintainer email="martin.bauernschmitt@francor.de">Martin Bauernschmitt</maintainer>
   <license>BSD 3-clause</license>
 

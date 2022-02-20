@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(francor_robot_base_ros2)
+project(francor_frank_base)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -21,7 +21,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(francor_robot_base REQUIRED)
 
 add_executable(frank_base 
   src/frank_base.cpp
