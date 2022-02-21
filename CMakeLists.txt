@@ -21,6 +21,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(francor REQUIRED)
 
 add_executable(frank_base 
@@ -33,7 +34,7 @@ target_include_directories(frank_base PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(frank_base francor-drive)
-ament_target_dependencies(frank_base rclcpp std_msgs)
+ament_target_dependencies(frank_base rclcpp std_msgs std_srvs)
 
 install(TARGETS frank_base
   DESTINATION lib/${PROJECT_NAME})

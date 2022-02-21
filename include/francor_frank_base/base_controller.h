@@ -32,6 +32,7 @@ enum BaseState {
     BASE_STS_OPEN_COM,
     BASE_STS_DRIVES_INIT,
     BASE_STS_DRIVES_IDLE,
+    BASE_STS_DRIVES_ENABLED,
     BASE_STS_ERROR,
 };
 
@@ -65,6 +66,7 @@ class BaseController {
     void runStsOpenCom();
     void runStsDrivesInit();
     void runStsDrivesIdle();
+    void runStsDrivesEnabled();
     void runStsError();
 
     bool _en_drives = {false};

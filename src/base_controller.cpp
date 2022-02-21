@@ -12,6 +12,8 @@
 
 #include "francor_frank_base/base_controller.h"
 
+#include <sstream>
+
 #include "rclcpp/rclcpp.hpp"
 
 using namespace francor::can;
@@ -26,6 +28,8 @@ std::string getBaseStateDesc(const BaseState state) {
             return "BASE_STS_DRIVES_INIT";
         case BASE_STS_DRIVES_IDLE:
             return "BASE_STS_DRIVES_IDLE";
+        case BASE_STS_DRIVES_ENABLED:
+            return "BASE_STS_DRIVES_ENABLED";
         case BASE_STS_ERROR:
             return "BASE_STS_ERROR";
         default:
@@ -37,6 +41,26 @@ BaseConfig::BaseConfig() : can("can0"), error_heal_time_s(1.0F) {}
 BaseConfig::BaseConfig(std::string& can, float error_heal_time_s) : can(can), error_heal_time_s(error_heal_time_s) {}
 
 BaseController::BaseController(BaseConfig& config) : _config(config) {}
+
+void BaseController::enableDrives() {
+    if (_active_state == BASE_STS_DRIVES_IDLE) {
+        _en_drives = true;
+    } else {
+        std::stringstream desc;
+        desc << "Transition to BASE_STS_DRIVES_ENABLED from '" << getBaseStateDesc(_active_state) << "' not possible!";
+        throw std::runtime_error(desc.str());
+    }
+}
+
+void BaseController::disableDrives() {
+    if (_active_state == BASE_STS_DRIVES_ENABLED) {
+        _en_drives = false;
+    } else {
+        std::stringstream desc;
+        desc << "Transition to BASE_STS_DRIVES_IDLE from '" << getBaseStateDesc(_active_state) << "' not possible!";
+        throw std::runtime_error(desc.str());
+    }
+}
 
 void BaseController::stepStateMachine() {
     switch (_active_state) {
@@ -51,6 +75,9 @@ void BaseController::stepStateMachine() {
             break;
         case BASE_STS_DRIVES_IDLE:
             runStsDrivesIdle();
+            break;
+        case BASE_STS_DRIVES_ENABLED:
+            runStsDrivesEnabled();
             break;
         case BASE_STS_ERROR:
             runStsError();
@@ -165,6 +192,9 @@ void BaseController::runStsDrivesInit() {
         drive_id++;
     }
 
+    /* Reset variables */
+    _en_drives = false;
+
     /* Transition handling */
     const bool can_running = isCANRunning();
     const bool transition_ok = can_running && drives_ok;
@@ -182,12 +212,38 @@ void BaseController::runStsDrivesInit() {
 }
 
 void BaseController::runStsDrivesIdle() {
+    bool drives_enabled = false;
+
+    if (_en_drives) {
+        drives_enabled = true;
+
+        unsigned int drive_id = {0U};
+        for (auto& drive : _drives) {
+            (void)drive;
+            drive_id++;
+        };
+    }
+
     /* Transition handling */
     const bool can_running = isCANRunning();
-    const bool transition_ok = can_running;
+    const bool transition_ok = can_running && drives_enabled;
 
     if (transition_ok) {
-        /* Do nothing */
+        setNewState(BASE_STS_DRIVES_ENABLED);
+    } else {
+        if (!can_running) {
+            setErrorState("CAN device failure! (Maybe not connected or down!)");
+        }
+    }
+}
+
+void BaseController::runStsDrivesEnabled() {
+    /* Transition handling */
+    const bool can_running = isCANRunning();
+    const bool transition_ok = can_running && !_en_drives;
+
+    if (transition_ok) {
+        setNewState(BASE_STS_DRIVES_IDLE);
     } else {
         if (!can_running) {
             setErrorState("CAN device failure! (Maybe not connected or down!)");
