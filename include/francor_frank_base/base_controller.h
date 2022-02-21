@@ -56,6 +56,7 @@ class BaseController {
     void stepStateMachine();
 
     auto isCANRunning();
+    auto allDrivesConnected();
 
    private:
     void setNewState(BaseState state);

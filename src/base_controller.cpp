@@ -99,6 +99,21 @@ auto BaseController::isCANRunning() {
     return can_running;
 }
 
+auto BaseController::allDrivesConnected() {
+    bool drives_connected = {true};
+
+    unsigned int drive_id = {0U};
+    for (auto& drive : _drives) {
+        if (!drive->isConnected()) {
+            RCLCPP_WARN(rclcpp::get_logger(_logger), "Drive %i not connected!", drive_id);
+            drives_connected = false;
+        }
+        drive_id++;
+    };
+
+    return drives_connected;
+}
+
 void BaseController::setNewState(const BaseState state) {
     RCLCPP_INFO(rclcpp::get_logger(_logger), "Transition from ['%s'] to ['%s']",
                 getBaseStateDesc(_active_state).c_str(), getBaseStateDesc(state).c_str());
@@ -176,7 +191,8 @@ void BaseController::runStsDrivesInit() {
     unsigned int drive_id = {0U};
     for (auto& drive : _drives) {
         try {
-            drive = std::make_shared<francor::drive::RMDX8Drive>(drive_id, _can_if);
+            auto rmd_x8_drive = std::make_shared<francor::drive::RMDX8Drive>(drive_id, _can_if);
+            drive = rmd_x8_drive;
 
             if (drive) {
                 if (!drive->isConnected()) {
@@ -212,21 +228,22 @@ void BaseController::runStsDrivesInit() {
 }
 
 void BaseController::runStsDrivesIdle() {
-    bool drives_enabled = false;
+    bool drives_enabled = {false};
 
     if (_en_drives) {
         drives_enabled = true;
 
         unsigned int drive_id = {0U};
         for (auto& drive : _drives) {
-            (void)drive;
+            drive->enable();
             drive_id++;
         };
     }
 
     /* Transition handling */
     const bool can_running = isCANRunning();
-    const bool transition_ok = can_running && drives_enabled;
+    const bool drives_connected = allDrivesConnected();
+    const bool transition_ok = can_running && drives_enabled && drives_connected;
 
     if (transition_ok) {
         setNewState(BASE_STS_DRIVES_ENABLED);
@@ -234,19 +251,26 @@ void BaseController::runStsDrivesIdle() {
         if (!can_running) {
             setErrorState("CAN device failure! (Maybe not connected or down!)");
         }
+        if (!drives_connected) {
+            setErrorState("One or more drives are not responding or connected!");
+        }
     }
 }
 
 void BaseController::runStsDrivesEnabled() {
     /* Transition handling */
     const bool can_running = isCANRunning();
-    const bool transition_ok = can_running && !_en_drives;
+    const bool drives_connected = allDrivesConnected();
+    const bool transition_ok = can_running && !_en_drives && drives_connected;
 
     if (transition_ok) {
         setNewState(BASE_STS_DRIVES_IDLE);
     } else {
         if (!can_running) {
             setErrorState("CAN device failure! (Maybe not connected or down!)");
+        }
+        if (!drives_connected) {
+            setErrorState("One or more drives are not responding or connected!");
         }
     }
 }
