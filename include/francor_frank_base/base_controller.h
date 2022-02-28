@@ -22,9 +22,9 @@ constexpr std::size_t BASE_NUM_DRIVES = {1U};
 
 enum BaseDriveID {
     BASE_DRIVE_FRONT_LEFT = 0,
-    BASE_DRIVE_FRONT_RIGHT,
-    BASE_DRIVE_REAR_LEFT,
-    BASE_DRIVE_REAR_RIGHT,
+    BASE_DRIVE_FRONT_RIGHT = 1,
+    BASE_DRIVE_REAR_LEFT = 2,
+    BASE_DRIVE_REAR_RIGHT = 3,
 };
 
 enum BaseState {
@@ -48,15 +48,19 @@ class BaseController {
    public:
     BaseController() = default;
     explicit BaseController(BaseConfig& config);
+    ~BaseController();
 
     void enableDrives();
     void disableDrives();
     void resetErrors();
+    void setCmdVel(float linear, float angular);
 
     void stepStateMachine();
 
-    auto isCANRunning();
-    auto allDrivesConnected();
+    std::shared_ptr<francor::drive::Drive> getDrive(uint8_t idx);
+
+    bool isCANRunning();
+    bool allDrivesConnected();
 
    private:
     void setNewState(BaseState state);
@@ -86,3 +90,4 @@ class BaseController {
 };
 
 std::string getBaseStateDesc(BaseState state);
+std::string getDriveIDStr(BaseDriveID id);

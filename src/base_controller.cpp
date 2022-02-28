@@ -19,28 +19,69 @@
 using namespace francor::can;
 
 std::string getBaseStateDesc(const BaseState state) {
+    std::string desc;
     switch (state) {
         case BASE_STS_INIT:
-            return "BASE_STS_INIT";
+            desc = "BASE_STS_INIT";
+            break;
         case BASE_STS_OPEN_COM:
-            return "BASE_STS_OPEN_COM";
+            desc = "BASE_STS_OPEN_COM";
+            break;
         case BASE_STS_DRIVES_INIT:
-            return "BASE_STS_DRIVES_INIT";
+            desc = "BASE_STS_DRIVES_INIT";
+            break;
         case BASE_STS_DRIVES_IDLE:
-            return "BASE_STS_DRIVES_IDLE";
+            desc = "BASE_STS_DRIVES_IDLE";
+            break;
         case BASE_STS_DRIVES_ENABLED:
-            return "BASE_STS_DRIVES_ENABLED";
+            desc = "BASE_STS_DRIVES_ENABLED";
+            break;
         case BASE_STS_ERROR:
-            return "BASE_STS_ERROR";
+            desc = "BASE_STS_ERROR";
+            break;
         default:
-            return "BASE_STS_UKNOWN";
+            desc = "BASE_STS_UKNOWN";
+            break;
     }
+    return desc;
+}
+
+std::string getDriveIDStr(const BaseDriveID id) {
+    std::string desc;
+    switch (id) {
+        case BASE_DRIVE_FRONT_LEFT:
+            desc = "drive_front_left";
+            break;
+        case BASE_DRIVE_FRONT_RIGHT:
+            desc = "drive_front_right";
+            break;
+        case BASE_DRIVE_REAR_LEFT:
+            desc = "drive_rear_left";
+            break;
+        case BASE_DRIVE_REAR_RIGHT:
+            desc = "drive_rear_right";
+            break;
+    }
+    return desc;
 }
 
 BaseConfig::BaseConfig() : can("can0"), error_heal_time_s(1.0F) {}
 BaseConfig::BaseConfig(std::string& can, float error_heal_time_s) : can(can), error_heal_time_s(error_heal_time_s) {}
 
 BaseController::BaseController(BaseConfig& config) : _config(config) {}
+
+BaseController::~BaseController() {
+    if (_can_if) {
+        for (auto& drive : _drives) {
+            try {
+                if (drive) {
+                    drive->disable();
+                }
+            } catch (...) {
+            }
+        }
+    }
+}
 
 void BaseController::enableDrives() {
     if (_active_state == BASE_STS_DRIVES_IDLE) {
@@ -59,6 +100,19 @@ void BaseController::disableDrives() {
         std::stringstream desc;
         desc << "Transition to BASE_STS_DRIVES_IDLE from '" << getBaseStateDesc(_active_state) << "' not possible!";
         throw std::runtime_error(desc.str());
+    }
+}
+
+void BaseController::setCmdVel(const float linear, const float angular) {
+    // TODO implement kinematics
+    (void)angular;
+
+    if (_active_state == BASE_STS_DRIVES_ENABLED) {
+        for (auto& drive : _drives) {
+            if (drive) {
+                drive->setSpeedRPM(linear);
+            }
+        }
     }
 }
 
@@ -85,7 +139,9 @@ void BaseController::stepStateMachine() {
     }
 }
 
-auto BaseController::isCANRunning() {
+std::shared_ptr<francor::drive::Drive> BaseController::getDrive(uint8_t idx) { return _drives.at(idx); }
+
+bool BaseController::isCANRunning() {
     bool can_running = {false};
 
     if (_can_if) {
@@ -99,13 +155,17 @@ auto BaseController::isCANRunning() {
     return can_running;
 }
 
-auto BaseController::allDrivesConnected() {
+bool BaseController::allDrivesConnected() {
     bool drives_connected = {true};
 
     unsigned int drive_id = {0U};
     for (auto& drive : _drives) {
-        if (!drive->isConnected()) {
-            RCLCPP_WARN(rclcpp::get_logger(_logger), "Drive %i not connected!", drive_id);
+        if (drive) {
+            if (!drive->isConnected()) {
+                RCLCPP_WARN(rclcpp::get_logger(_logger), "Drive %i not connected!", drive_id);
+                drives_connected = false;
+            }
+        } else {
             drives_connected = false;
         }
         drive_id++;
@@ -195,7 +255,9 @@ void BaseController::runStsDrivesInit() {
             drive = rmd_x8_drive;
 
             if (drive) {
-                if (!drive->isConnected()) {
+                if (drive->isConnected()) {
+                    drive->disable();
+                } else {
                     drives_ok = false;
                     error_desc << "\nFailed to communicate with drive ['" << +drive_id << "']! Drive connected?\n";
                 }
@@ -233,10 +295,8 @@ void BaseController::runStsDrivesIdle() {
     if (_en_drives) {
         drives_enabled = true;
 
-        unsigned int drive_id = {0U};
         for (auto& drive : _drives) {
             drive->enable();
-            drive_id++;
         };
     }
 
@@ -258,6 +318,12 @@ void BaseController::runStsDrivesIdle() {
 }
 
 void BaseController::runStsDrivesEnabled() {
+    if (!_en_drives) {
+        for (auto& drive : _drives) {
+            drive->disable();
+        };
+    }
+
     /* Transition handling */
     const bool can_running = isCANRunning();
     const bool drives_connected = allDrivesConnected();
