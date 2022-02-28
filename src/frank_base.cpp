@@ -26,6 +26,7 @@ class FrankBase : public rclcpp::Node {
     FrankBase();
 
    private:
+    void resetVariables();
     void declareParams();
     void readParams();
     void createBaseController();
@@ -49,10 +50,15 @@ class FrankBase : public rclcpp::Node {
     std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _speed_pub_lst;
     std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _torque_pub_lst;
     std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _tempC_pub_lst;
+    std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _voltV_pub_lst;
     TwistMsgSub::SharedPtr _speed_subs;
+
+    std::atomic<float> _cmd_lin_x;
+    std::atomic<float> _cmd_ang_z;
 };
 
 FrankBase::FrankBase() : Node("frank_base") {
+    resetVariables();
     declareParams();
     readParams();
     createBaseController();
@@ -61,6 +67,11 @@ FrankBase::FrankBase() : Node("frank_base") {
     createSubscriber();
 
     _base_step_timer = this->create_wall_timer(20ms, std::bind(&FrankBase::cbBaseStep, this));
+}
+
+void FrankBase::resetVariables() {
+    _cmd_lin_x = 0.0F;
+    _cmd_ang_z = 0.0F;
 }
 
 void FrankBase::declareParams() { this->declare_parameter<std::string>("can", "can0"); }
@@ -91,6 +102,9 @@ void FrankBase::createPublishers() {
 
         _tempC_pub_lst.at(idx) =
             create_publisher<std_msgs::msg::Float32>(getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/temp", 1);
+
+        _voltV_pub_lst.at(idx) =
+            create_publisher<std_msgs::msg::Float32>(getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/voltage", 1);
     }
 }
 
@@ -107,6 +121,9 @@ void FrankBase::publish() {
 
             msg.data = _base_controller->getDrive(idx)->getTempC();
             _tempC_pub_lst.at(idx)->publish(msg);
+
+            msg.data = _base_controller->getDrive(idx)->getVoltageV();
+            _voltV_pub_lst.at(idx)->publish(msg);
         }
     }
 }
@@ -118,6 +135,7 @@ void FrankBase::createSubscriber() {
 
 void FrankBase::cbBaseStep() {
     this->_base_controller->stepStateMachine();
+    _base_controller->setCmdVel(_cmd_lin_x, _cmd_ang_z);
     publish();
 }
 
@@ -137,7 +155,8 @@ void FrankBase::cbEnableDrives(const std::shared_ptr<std_srvs::srv::SetBool::Req
 }
 
 void FrankBase::cbCmdVelocity(const TwistMsg::SharedPtr cmd_vel) {
-    _base_controller->setCmdVel(static_cast<float>(cmd_vel->linear.x), static_cast<float>(cmd_vel->angular.z));
+    _cmd_lin_x = static_cast<float>(cmd_vel->linear.x);
+    _cmd_ang_z = static_cast<float>(cmd_vel->angular.z);
 }
 
 int main(int argc, char* argv[]) {

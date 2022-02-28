@@ -257,6 +257,7 @@ void BaseController::runStsDrivesInit() {
             if (drive) {
                 if (drive->isConnected()) {
                     drive->disable();
+                    drive->setAccelleration(1.0F);
                 } else {
                     drives_ok = false;
                     error_desc << "\nFailed to communicate with drive ['" << +drive_id << "']! Drive connected?\n";
