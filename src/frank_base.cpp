@@ -41,6 +41,7 @@ class FrankBase : public rclcpp::Node {
                         std::shared_ptr<std_srvs::srv::SetBool::Response> response);
 
     void cbCmdVelocity(TwistMsg::SharedPtr cmd_vel);
+    void cbAccelLimit(Float32Msg::SharedPtr accel_limit);
 
     std::string _can_name;
 
@@ -51,10 +52,12 @@ class FrankBase : public rclcpp::Node {
     std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _torque_pub_lst;
     std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _tempC_pub_lst;
     std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _voltV_pub_lst;
+    Float32MsgSub::SharedPtr _accel_subs;
     TwistMsgSub::SharedPtr _speed_subs;
 
     std::atomic<float> _cmd_lin_x;
     std::atomic<float> _cmd_ang_z;
+    std::atomic<float> _accel_limit;
 };
 
 FrankBase::FrankBase() : Node("frank_base") {
@@ -131,11 +134,15 @@ void FrankBase::publish() {
 void FrankBase::createSubscriber() {
     _speed_subs = this->create_subscription<TwistMsg>(
         "cmd_vel", 1, std::bind(&FrankBase::cbCmdVelocity, this, std::placeholders::_1));
+
+    _accel_subs = this->create_subscription<Float32Msg>(
+        "accel_limit", 1, std::bind(&FrankBase::cbAccelLimit, this, std::placeholders::_1));
 }
 
 void FrankBase::cbBaseStep() {
     this->_base_controller->stepStateMachine();
     _base_controller->setCmdVel(_cmd_lin_x, _cmd_ang_z);
+    _base_controller->setAccelLimit(_accel_limit);
     publish();
 }
 
@@ -158,6 +165,8 @@ void FrankBase::cbCmdVelocity(const TwistMsg::SharedPtr cmd_vel) {
     _cmd_lin_x = static_cast<float>(cmd_vel->linear.x);
     _cmd_ang_z = static_cast<float>(cmd_vel->angular.z);
 }
+
+void FrankBase::cbAccelLimit(Float32Msg::SharedPtr accel_limit) { _accel_limit = accel_limit->data; }
 
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);

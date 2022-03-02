@@ -103,6 +103,14 @@ void BaseController::disableDrives() {
     }
 }
 
+void BaseController::setAccelLimit(float accel_limit) {
+    if(_active_state == BASE_STS_DRIVES_ENABLED || _active_state == BASE_STS_DRIVES_IDLE) {
+        for(auto& drive : _drives) {
+            drive->setAccelleration(accel_limit);
+        }
+    }
+}
+
 void BaseController::setCmdVel(const float linear, const float angular) {
     // TODO implement kinematics
     (void)angular;

@@ -53,6 +53,8 @@ class BaseController {
     void enableDrives();
     void disableDrives();
     void resetErrors();
+
+    void setAccelLimit(float accel_limit);
     void setCmdVel(float linear, float angular);
 
     void stepStateMachine();
