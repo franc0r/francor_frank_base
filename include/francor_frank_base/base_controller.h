@@ -18,7 +18,7 @@
 #include <chrono>
 #include <string>
 
-constexpr std::size_t BASE_NUM_DRIVES = {1U};
+constexpr std::size_t BASE_NUM_DRIVES = {4U};
 
 enum BaseDriveID {
     BASE_DRIVE_FRONT_LEFT = 0,
@@ -44,6 +44,29 @@ struct BaseConfig {
     float error_heal_time_s;
 };
 
+class BaseCmdVel {
+   public:
+    BaseCmdVel() = default;
+    BaseCmdVel(const BaseCmdVel& cmd_vel) = default;
+    explicit BaseCmdVel(const float linear_vel, const float angular_vel)
+        : _linear_vel(linear_vel), _angular_vel(angular_vel) {}
+
+    auto getLinearVel() const { return _linear_vel; }
+    auto getAngularVel() const { return _angular_vel; }
+
+    auto operator==(BaseCmdVel& rhs) const {
+        return ((abs(_linear_vel - rhs._linear_vel) < 0.0001F) && (abs(_angular_vel - rhs._angular_vel) < 0.0001F));
+    }
+
+    auto operator!=(BaseCmdVel& rhs) const {
+        return !((abs(_linear_vel - rhs._linear_vel) < 0.0001F) && (abs(_angular_vel - rhs._angular_vel) < 0.0001F));
+    }
+
+   private:
+    float _linear_vel = {0.0F};
+    float _angular_vel = {0.0F};
+};
+
 class BaseController {
    public:
     BaseController() = default;
@@ -55,7 +78,7 @@ class BaseController {
     void resetErrors();
 
     void setAccelLimit(float accel_limit);
-    void setCmdVel(float linear, float angular);
+    void setCmdVel(BaseCmdVel cmd_vel);
 
     void stepStateMachine();
 
@@ -76,6 +99,12 @@ class BaseController {
     void runStsDrivesEnabled();
     void runStsError();
 
+    void enableAllDrives();
+    void disableAllDrives();
+
+    void updateAccelLimit();
+    void updateCmdVel();
+
     bool _en_drives = {false};
     bool _reset_errors = {false};
 
@@ -87,6 +116,12 @@ class BaseController {
 
     std::shared_ptr<francor::can::CAN> _can_if = {};
     std::array<std::shared_ptr<francor::drive::Drive>, BASE_NUM_DRIVES> _drives = {};
+
+    float _accel_limit_req = {0.0F};
+    float _active_accel_limit = {0.0F};
+
+    BaseCmdVel _cmd_vel_req = {};
+    BaseCmdVel _cmd_vel_actv = {};
 
     const std::string _logger = {"FrancorBaseController"};
 };

@@ -116,17 +116,21 @@ void FrankBase::publish() {
         for (auto idx = 0U; idx < BASE_NUM_DRIVES; idx++) {
             Float32Msg msg;
 
-            msg.data = _base_controller->getDrive(idx)->getCurrentSpeedRPM();
-            _speed_pub_lst.at(idx)->publish(msg);
+            try {
+                msg.data = _base_controller->getDrive(idx)->getCurrentSpeedRPM();
+                _speed_pub_lst.at(idx)->publish(msg);
 
-            msg.data = _base_controller->getDrive(idx)->getCurrentTorqueNm();
-            _torque_pub_lst.at(idx)->publish(msg);
+                msg.data = _base_controller->getDrive(idx)->getCurrentTorqueNm();
+                _torque_pub_lst.at(idx)->publish(msg);
 
-            msg.data = _base_controller->getDrive(idx)->getTempC();
-            _tempC_pub_lst.at(idx)->publish(msg);
+                msg.data = _base_controller->getDrive(idx)->getTempC();
+                _tempC_pub_lst.at(idx)->publish(msg);
 
-            msg.data = _base_controller->getDrive(idx)->getVoltageV();
-            _voltV_pub_lst.at(idx)->publish(msg);
+                msg.data = _base_controller->getDrive(idx)->getVoltageV();
+                _voltV_pub_lst.at(idx)->publish(msg);
+            } catch (francor::can::can_exception& e) {
+                RCLCPP_WARN(this->get_logger(), "Error publishing drive ['%i'] state", idx);  // NOLINT
+            }
         }
     }
 }
@@ -140,9 +144,10 @@ void FrankBase::createSubscriber() {
 }
 
 void FrankBase::cbBaseStep() {
-    this->_base_controller->stepStateMachine();
-    _base_controller->setCmdVel(_cmd_lin_x, _cmd_ang_z);
+    _base_controller->stepStateMachine();
+    _base_controller->setCmdVel(BaseCmdVel(_cmd_lin_x, _cmd_ang_z));
     _base_controller->setAccelLimit(_accel_limit);
+
     publish();
 }
 

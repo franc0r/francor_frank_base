@@ -103,26 +103,9 @@ void BaseController::disableDrives() {
     }
 }
 
-void BaseController::setAccelLimit(float accel_limit) {
-    if(_active_state == BASE_STS_DRIVES_ENABLED || _active_state == BASE_STS_DRIVES_IDLE) {
-        for(auto& drive : _drives) {
-            drive->setAccelleration(accel_limit);
-        }
-    }
-}
+void BaseController::setAccelLimit(float accel_limit) { _accel_limit_req = accel_limit; }
 
-void BaseController::setCmdVel(const float linear, const float angular) {
-    // TODO implement kinematics
-    (void)angular;
-
-    if (_active_state == BASE_STS_DRIVES_ENABLED) {
-        for (auto& drive : _drives) {
-            if (drive) {
-                drive->setSpeedRPM(linear);
-            }
-        }
-    }
-}
+void BaseController::setCmdVel(BaseCmdVel cmd_vel) { _cmd_vel_req = cmd_vel; }
 
 void BaseController::stepStateMachine() {
     switch (_active_state) {
@@ -166,18 +149,23 @@ bool BaseController::isCANRunning() {
 bool BaseController::allDrivesConnected() {
     bool drives_connected = {true};
 
-    unsigned int drive_id = {0U};
-    for (auto& drive : _drives) {
-        if (drive) {
-            if (!drive->isConnected()) {
-                RCLCPP_WARN(rclcpp::get_logger(_logger), "Drive %i not connected!", drive_id);
+    try {
+        unsigned int drive_id = {0U};
+        for (auto& drive : _drives) {
+            if (drive) {
+                if (!drive->isConnected()) {
+                    RCLCPP_WARN(rclcpp::get_logger(_logger), "Drive ['%i-%s'] not connected!", drive_id,
+                                getDriveIDStr(static_cast<BaseDriveID>(drive_id)));
+                    drives_connected = false;
+                }
+            } else {
                 drives_connected = false;
             }
-        } else {
-            drives_connected = false;
-        }
-        drive_id++;
-    };
+            drive_id++;
+        };
+    } catch (const can_exception& e) {
+        setErrorState("Error checking if all drives are connected!");
+    }
 
     return drives_connected;
 }
@@ -265,15 +253,16 @@ void BaseController::runStsDrivesInit() {
             if (drive) {
                 if (drive->isConnected()) {
                     drive->disable();
-                    drive->setAccelleration(1.0F);
                 } else {
                     drives_ok = false;
-                    error_desc << "\nFailed to communicate with drive ['" << +drive_id << "']! Drive connected?\n";
+                    error_desc << "\nFailed to communicate with drive ['" << +drive_id << "-"
+                               << getDriveIDStr(static_cast<BaseDriveID>(drive_id)) << "']! Drive connected?\n";
                 }
             }
         } catch (...) {
             drives_ok = false;
-            error_desc << "\nFailed to initialize drive ['" << +drive_id << "']! Drive connected?\n";
+            error_desc << "\nFailed to initialize drive ['" << +drive_id << "-"
+                       << getDriveIDStr(static_cast<BaseDriveID>(drive_id)) << "']! Drive connected?\n";
         }
 
         drive_id++;
@@ -281,6 +270,7 @@ void BaseController::runStsDrivesInit() {
 
     /* Reset variables */
     _en_drives = false;
+    _active_accel_limit = 0.0F;
 
     /* Transition handling */
     const bool can_running = isCANRunning();
@@ -301,13 +291,17 @@ void BaseController::runStsDrivesInit() {
 void BaseController::runStsDrivesIdle() {
     bool drives_enabled = {false};
 
-    if (_en_drives) {
-        drives_enabled = true;
+    /* Update config */
+    updateAccelLimit();
 
-        for (auto& drive : _drives) {
-            drive->enable();
-        };
+    /* React to requests */
+    if (_en_drives) {
+        enableAllDrives();
+        drives_enabled = true;
     }
+
+    /* Reset variables */
+    _cmd_vel_req = BaseCmdVel();
 
     /* Transition handling */
     const bool can_running = isCANRunning();
@@ -327,11 +321,16 @@ void BaseController::runStsDrivesIdle() {
 }
 
 void BaseController::runStsDrivesEnabled() {
+    /* Update config */
+    updateAccelLimit();
+
+    /* React to requests */
     if (!_en_drives) {
-        for (auto& drive : _drives) {
-            drive->disable();
-        };
+        disableAllDrives();
     }
+
+    /* Update cmd velocity */
+    updateCmdVel();
 
     /* Transition handling */
     const bool can_running = isCANRunning();
@@ -347,5 +346,51 @@ void BaseController::runStsDrivesEnabled() {
         if (!drives_connected) {
             setErrorState("One or more drives are not responding or connected!");
         }
+    }
+}
+
+void BaseController::enableAllDrives() {
+    try {
+        for (auto& drive : _drives) {
+            drive->enable();
+        }
+    } catch (can_exception& e) {
+        setErrorState("Error enabling all drives!");
+    }
+}
+
+void BaseController::disableAllDrives() {
+    try {
+        for (auto& drive : _drives) {
+            drive->disable();
+        }
+    } catch (can_exception& e) {
+        setErrorState("Error disabling all drives!");
+    }
+}
+
+void BaseController::updateAccelLimit() {
+    try {
+        if (abs(_active_accel_limit - _accel_limit_req) > 0.01F) {
+            for (auto& drive : _drives) {
+                drive->setAccelleration(_accel_limit_req);
+            }
+            _active_accel_limit = _accel_limit_req;
+        }
+    } catch (can_exception& e) {
+        setErrorState("Error setting accelleration limit!");
+    }
+}
+
+void BaseController::updateCmdVel() {
+    try {
+        if (_cmd_vel_actv != _cmd_vel_req) {
+            for (auto& drive : _drives) {
+                drive->setSpeedRPM(_cmd_vel_req.getLinearVel());
+            }
+            _cmd_vel_actv = _cmd_vel_req;
+        }
+    } catch (can_exception& e) {
+        setErrorState("Error setting speed!");
     }
 }
