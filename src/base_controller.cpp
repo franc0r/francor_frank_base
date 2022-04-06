@@ -19,88 +19,89 @@
 using namespace francor::can;
 
 std::string getBaseStateDesc(const BaseState state) {
-    std::string desc;
-    switch (state) {
-        case BASE_STS_INIT:
-            desc = "BASE_STS_INIT";
-            break;
-        case BASE_STS_OPEN_COM:
-            desc = "BASE_STS_OPEN_COM";
-            break;
-        case BASE_STS_DRIVES_INIT:
-            desc = "BASE_STS_DRIVES_INIT";
-            break;
-        case BASE_STS_DRIVES_IDLE:
-            desc = "BASE_STS_DRIVES_IDLE";
-            break;
-        case BASE_STS_DRIVES_ENABLED:
-            desc = "BASE_STS_DRIVES_ENABLED";
-            break;
-        case BASE_STS_ERROR:
-            desc = "BASE_STS_ERROR";
-            break;
-        default:
-            desc = "BASE_STS_UKNOWN";
-            break;
-    }
-    return desc;
+  std::string desc;
+  switch (state) {
+    case BASE_STS_INIT:
+      desc = "BASE_STS_INIT";
+      break;
+    case BASE_STS_OPEN_COM:
+      desc = "BASE_STS_OPEN_COM";
+      break;
+    case BASE_STS_DRIVES_INIT:
+      desc = "BASE_STS_DRIVES_INIT";
+      break;
+    case BASE_STS_DRIVES_IDLE:
+      desc = "BASE_STS_DRIVES_IDLE";
+      break;
+    case BASE_STS_DRIVES_ENABLED:
+      desc = "BASE_STS_DRIVES_ENABLED";
+      break;
+    case BASE_STS_ERROR:
+      desc = "BASE_STS_ERROR";
+      break;
+    default:
+      desc = "BASE_STS_UKNOWN";
+      break;
+  }
+  return desc;
 }
 
 std::string getDriveIDStr(const BaseDriveID id) {
-    std::string desc;
-    switch (id) {
-        case BASE_DRIVE_FRONT_LEFT:
-            desc = "drive_front_left";
-            break;
-        case BASE_DRIVE_FRONT_RIGHT:
-            desc = "drive_front_right";
-            break;
-        case BASE_DRIVE_REAR_LEFT:
-            desc = "drive_rear_left";
-            break;
-        case BASE_DRIVE_REAR_RIGHT:
-            desc = "drive_rear_right";
-            break;
-    }
-    return desc;
+  std::string desc;
+  switch (id) {
+    case BASE_DRIVE_FRONT_LEFT:
+      desc = "drive_front_left";
+      break;
+    case BASE_DRIVE_FRONT_RIGHT:
+      desc = "drive_front_right";
+      break;
+    case BASE_DRIVE_REAR_LEFT:
+      desc = "drive_rear_left";
+      break;
+    case BASE_DRIVE_REAR_RIGHT:
+      desc = "drive_rear_right";
+      break;
+  }
+  return desc;
 }
 
 BaseConfig::BaseConfig() : can("can0"), error_heal_time_s(1.0F) {}
 BaseConfig::BaseConfig(std::string& can, float error_heal_time_s) : can(can), error_heal_time_s(error_heal_time_s) {}
 
-BaseController::BaseController(BaseConfig& config) : _config(config) {}
+BaseController::BaseController(BaseConfig& config, BaseChassisParams& chassis_params)
+    : _config(config), _chassis_params(chassis_params) {}
 
 BaseController::~BaseController() {
-    if (_can_if) {
-        for (auto& drive : _drives) {
-            try {
-                if (drive) {
-                    drive->disable();
-                }
-            } catch (...) {
-            }
+  if (_can_if) {
+    for (auto& drive : _drives) {
+      try {
+        if (drive) {
+          drive->disable();
         }
+      } catch (...) {
+      }
     }
+  }
 }
 
 void BaseController::enableDrives() {
-    if (_active_state == BASE_STS_DRIVES_IDLE) {
-        _en_drives = true;
-    } else {
-        std::stringstream desc;
-        desc << "Transition to BASE_STS_DRIVES_ENABLED from '" << getBaseStateDesc(_active_state) << "' not possible!";
-        throw std::runtime_error(desc.str());
-    }
+  if (_active_state == BASE_STS_DRIVES_IDLE) {
+    _en_drives = true;
+  } else {
+    std::stringstream desc;
+    desc << "Transition to BASE_STS_DRIVES_ENABLED from '" << getBaseStateDesc(_active_state) << "' not possible!";
+    throw std::runtime_error(desc.str());
+  }
 }
 
 void BaseController::disableDrives() {
-    if (_active_state == BASE_STS_DRIVES_ENABLED) {
-        _en_drives = false;
-    } else {
-        std::stringstream desc;
-        desc << "Transition to BASE_STS_DRIVES_IDLE from '" << getBaseStateDesc(_active_state) << "' not possible!";
-        throw std::runtime_error(desc.str());
-    }
+  if (_active_state == BASE_STS_DRIVES_ENABLED) {
+    _en_drives = false;
+  } else {
+    std::stringstream desc;
+    desc << "Transition to BASE_STS_DRIVES_IDLE from '" << getBaseStateDesc(_active_state) << "' not possible!";
+    throw std::runtime_error(desc.str());
+  }
 }
 
 void BaseController::setAccelLimit(float accel_limit) { _accel_limit_req = accel_limit; }
@@ -108,289 +109,305 @@ void BaseController::setAccelLimit(float accel_limit) { _accel_limit_req = accel
 void BaseController::setCmdVel(BaseCmdVel cmd_vel) { _cmd_vel_req = cmd_vel; }
 
 void BaseController::stepStateMachine() {
-    switch (_active_state) {
-        case BASE_STS_INIT:
-            runStsInit();
-            break;
-        case BASE_STS_OPEN_COM:
-            runStsOpenCom();
-            break;
-        case BASE_STS_DRIVES_INIT:
-            runStsDrivesInit();
-            break;
-        case BASE_STS_DRIVES_IDLE:
-            runStsDrivesIdle();
-            break;
-        case BASE_STS_DRIVES_ENABLED:
-            runStsDrivesEnabled();
-            break;
-        case BASE_STS_ERROR:
-            runStsError();
-            break;
-    }
+  switch (_active_state) {
+    case BASE_STS_INIT:
+      runStsInit();
+      break;
+    case BASE_STS_OPEN_COM:
+      runStsOpenCom();
+      break;
+    case BASE_STS_DRIVES_INIT:
+      runStsDrivesInit();
+      break;
+    case BASE_STS_DRIVES_IDLE:
+      runStsDrivesIdle();
+      break;
+    case BASE_STS_DRIVES_ENABLED:
+      runStsDrivesEnabled();
+      break;
+    case BASE_STS_ERROR:
+      runStsError();
+      break;
+  }
 }
 
 std::shared_ptr<francor::drive::Drive> BaseController::getDrive(uint8_t idx) { return _drives.at(idx); }
 
 bool BaseController::isCANRunning() {
-    bool can_running = {false};
+  bool can_running = {false};
 
-    if (_can_if) {
-        try {
-            can_running = _can_if->isDeviceUp();
-        } catch (const can_exception& e) {
-            setErrorState(e.what());
-        }
+  if (_can_if) {
+    try {
+      can_running = _can_if->isDeviceUp();
+    } catch (const can_exception& e) {
+      setErrorState(e.what());
     }
+  }
 
-    return can_running;
+  return can_running;
 }
 
 bool BaseController::allDrivesConnected() {
-    bool drives_connected = {true};
+  bool drives_connected = {true};
 
-    try {
-        unsigned int drive_id = {0U};
-        for (auto& drive : _drives) {
-            if (drive) {
-                if (!drive->isConnected()) {
-                    RCLCPP_WARN(rclcpp::get_logger(_logger), "Drive ['%i-%s'] not connected!", drive_id,
-                                getDriveIDStr(static_cast<BaseDriveID>(drive_id)));
-                    drives_connected = false;
-                }
-            } else {
-                drives_connected = false;
-            }
-            drive_id++;
-        };
-    } catch (const can_exception& e) {
-        setErrorState("Error checking if all drives are connected!");
-    }
+  try {
+    unsigned int drive_id = {0U};
+    for (auto& drive : _drives) {
+      if (drive) {
+        if (!drive->isConnected()) {
+          RCLCPP_WARN(rclcpp::get_logger(_logger), "Drive ['%i-%s'] not connected!", drive_id,
+                      getDriveIDStr(static_cast<BaseDriveID>(drive_id)));
+          drives_connected = false;
+        }
+      } else {
+        drives_connected = false;
+      }
+      drive_id++;
+    };
+  } catch (const can_exception& e) {
+    setErrorState("Error checking if all drives are connected!");
+  }
 
-    return drives_connected;
+  return drives_connected;
 }
 
 void BaseController::setNewState(const BaseState state) {
-    RCLCPP_INFO(rclcpp::get_logger(_logger), "Transition from ['%s'] to ['%s']",
-                getBaseStateDesc(_active_state).c_str(), getBaseStateDesc(state).c_str());
-    _active_state = state;
+  RCLCPP_INFO(rclcpp::get_logger(_logger), "Transition from ['%s'] to ['%s']", getBaseStateDesc(_active_state).c_str(),
+              getBaseStateDesc(state).c_str());
+  _active_state = state;
 }
 
 void BaseController::setErrorState(const std::string desc) {
-    RCLCPP_WARN(rclcpp::get_logger(_logger), "Transition from ['%s'] to ['%s']",
-                getBaseStateDesc(_active_state).c_str(), getBaseStateDesc(BASE_STS_ERROR).c_str());
-    RCLCPP_WARN(rclcpp::get_logger(_logger), "Error description: %s", desc.c_str());
-    RCLCPP_WARN(rclcpp::get_logger(_logger), "Retry executing state ['%s'] after %f second(s)",
-                getBaseStateDesc(_active_state).c_str(), _config.error_heal_time_s);
+  RCLCPP_WARN(rclcpp::get_logger(_logger), "Transition from ['%s'] to ['%s']", getBaseStateDesc(_active_state).c_str(),
+              getBaseStateDesc(BASE_STS_ERROR).c_str());
+  RCLCPP_WARN(rclcpp::get_logger(_logger), "Error description: %s", desc.c_str());
+  RCLCPP_WARN(rclcpp::get_logger(_logger), "Retry executing state ['%s'] after %f second(s)",
+              getBaseStateDesc(_active_state).c_str(), _config.error_heal_time_s);
 
-    /* Cleanup */
-    _can_if.reset();
+  /* Cleanup */
+  _can_if.reset();
 
-    for (auto& drive : _drives) {
-        drive.reset();
-    }
+  for (auto& drive : _drives) {
+    drive.reset();
+  }
 
-    _pre_error_state = _active_state;
-    _error_time_point = std::chrono::steady_clock::now();
-    _active_state = BASE_STS_ERROR;
+  _pre_error_state = _active_state;
+  _error_time_point = std::chrono::steady_clock::now();
+  _active_state = BASE_STS_ERROR;
 }
 
 void BaseController::runStsInit() {
-    /* Transition handling */
-    setNewState(BASE_STS_OPEN_COM);
+  /* Transition handling */
+  setNewState(BASE_STS_OPEN_COM);
 }
 
 void BaseController::runStsOpenCom() {
-    bool can_ok = {false};
+  bool can_ok = {false};
 
-    try {
-        _can_if = std::make_shared<SocketCAN>(_config.can);
-        can_ok = true;
-    } catch (const can_exception& e) {
-        _can_if.reset();
-        can_ok = false;
-    }
+  try {
+    _can_if = std::make_shared<SocketCAN>(_config.can);
+    can_ok = true;
+  } catch (const can_exception& e) {
+    _can_if.reset();
+    can_ok = false;
+  }
 
-    /* Transition handling */
-    if (can_ok) {
-        if (_can_if->isDeviceUp()) {
-            setNewState(BASE_STS_DRIVES_INIT);
-        } else {
-            setErrorState("CAN device is not UP!");
-        }
+  /* Transition handling */
+  if (can_ok) {
+    if (_can_if->isDeviceUp()) {
+      setNewState(BASE_STS_DRIVES_INIT);
     } else {
-        setErrorState("Failed to open CAN interface! Check if can adapter is connected and up!");
+      setErrorState("CAN device is not UP!");
     }
+  } else {
+    setErrorState("Failed to open CAN interface! Check if can adapter is connected and up!");
+  }
 }
 
 void BaseController::runStsError() {
-    bool error_healed = {false};
+  bool error_healed = {false};
 
-    std::chrono::duration<float> error_state_time =
-        std::chrono::duration_cast<std::chrono::duration<float>>(std::chrono::steady_clock::now() - _error_time_point);
+  std::chrono::duration<float> error_state_time =
+      std::chrono::duration_cast<std::chrono::duration<float>>(std::chrono::steady_clock::now() - _error_time_point);
 
-    if (error_state_time.count() >= _config.error_heal_time_s) {
-        error_healed = true;
-    }
+  if (error_state_time.count() >= _config.error_heal_time_s) {
+    error_healed = true;
+  }
 
-    /* Transition handling */
-    if (error_healed) {
-        setNewState(BASE_STS_OPEN_COM);
-    }
+  /* Transition handling */
+  if (error_healed) {
+    setNewState(BASE_STS_OPEN_COM);
+  }
 }
 
 void BaseController::runStsDrivesInit() {
-    std::stringstream error_desc;
-    bool drives_ok = {true};
+  std::stringstream error_desc;
+  bool drives_ok = {true};
 
-    /* Init drives */
-    unsigned int drive_id = {0U};
-    for (auto& drive : _drives) {
-        try {
-            auto rmd_x8_drive = std::make_shared<francor::drive::RMDX8Drive>(drive_id, _can_if);
-            drive = rmd_x8_drive;
+  /* Init drives */
+  unsigned int drive_id = {0U};
+  for (auto& drive : _drives) {
+    try {
+      auto rmd_x8_drive = std::make_shared<francor::drive::RMDX8Drive>(drive_id, _can_if);
+      drive = rmd_x8_drive;
 
-            if (drive) {
-                if (drive->isConnected()) {
-                    drive->disable();
-                } else {
-                    drives_ok = false;
-                    error_desc << "\nFailed to communicate with drive ['" << +drive_id << "-"
-                               << getDriveIDStr(static_cast<BaseDriveID>(drive_id)) << "']! Drive connected?\n";
-                }
-            }
-        } catch (...) {
-            drives_ok = false;
-            error_desc << "\nFailed to initialize drive ['" << +drive_id << "-"
-                       << getDriveIDStr(static_cast<BaseDriveID>(drive_id)) << "']! Drive connected?\n";
+      if (drive) {
+        if (drive->isConnected()) {
+          drive->disable();
+        } else {
+          drives_ok = false;
+          error_desc << "\nFailed to communicate with drive ['" << +drive_id << "-"
+                     << getDriveIDStr(static_cast<BaseDriveID>(drive_id)) << "']! Drive connected?\n";
         }
-
-        drive_id++;
+      }
+    } catch (...) {
+      drives_ok = false;
+      error_desc << "\nFailed to initialize drive ['" << +drive_id << "-"
+                 << getDriveIDStr(static_cast<BaseDriveID>(drive_id)) << "']! Drive connected?\n";
     }
 
-    /* Reset variables */
-    _en_drives = false;
-    _active_accel_limit = 0.0F;
+    drive_id++;
+  }
 
-    /* Transition handling */
-    const bool can_running = isCANRunning();
-    const bool transition_ok = can_running && drives_ok;
+  /* Reset variables */
+  _en_drives = false;
+  _active_accel_limit = 0.0F;
 
-    if (transition_ok) {
-        setNewState(BASE_STS_DRIVES_IDLE);
-    } else {
-        if (!can_running) {
-            setErrorState("CAN device failure! (Maybe not connected or down!)");
-        }
-        if (!drives_ok) {
-            setErrorState(error_desc.str());
-        }
+  /* Transition handling */
+  const bool can_running = isCANRunning();
+  const bool transition_ok = can_running && drives_ok;
+
+  if (transition_ok) {
+    setNewState(BASE_STS_DRIVES_IDLE);
+  } else {
+    if (!can_running) {
+      setErrorState("CAN device failure! (Maybe not connected or down!)");
     }
+    if (!drives_ok) {
+      setErrorState(error_desc.str());
+    }
+  }
 }
 
 void BaseController::runStsDrivesIdle() {
-    bool drives_enabled = {false};
+  bool drives_enabled = {false};
 
-    /* Update config */
-    updateAccelLimit();
+  /* Update config */
+  updateAccelLimit();
 
-    /* React to requests */
-    if (_en_drives) {
-        enableAllDrives();
-        drives_enabled = true;
+  /* React to requests */
+  if (_en_drives) {
+    enableAllDrives();
+    drives_enabled = true;
+  }
+
+  /* Reset variables */
+  _cmd_vel_req = BaseCmdVel();
+
+  /* Transition handling */
+  const bool can_running = isCANRunning();
+  const bool drives_connected = allDrivesConnected();
+  const bool transition_ok = can_running && drives_enabled && drives_connected;
+
+  if (transition_ok) {
+    setNewState(BASE_STS_DRIVES_ENABLED);
+  } else {
+    if (!can_running) {
+      setErrorState("CAN device failure! (Maybe not connected or down!)");
     }
-
-    /* Reset variables */
-    _cmd_vel_req = BaseCmdVel();
-
-    /* Transition handling */
-    const bool can_running = isCANRunning();
-    const bool drives_connected = allDrivesConnected();
-    const bool transition_ok = can_running && drives_enabled && drives_connected;
-
-    if (transition_ok) {
-        setNewState(BASE_STS_DRIVES_ENABLED);
-    } else {
-        if (!can_running) {
-            setErrorState("CAN device failure! (Maybe not connected or down!)");
-        }
-        if (!drives_connected) {
-            setErrorState("One or more drives are not responding or connected!");
-        }
+    if (!drives_connected) {
+      setErrorState("One or more drives are not responding or connected!");
     }
+  }
 }
 
 void BaseController::runStsDrivesEnabled() {
-    /* Update config */
-    updateAccelLimit();
+  /* Update config */
+  updateAccelLimit();
 
-    /* React to requests */
-    if (!_en_drives) {
-        disableAllDrives();
+  /* React to requests */
+  if (!_en_drives) {
+    disableAllDrives();
+  }
+
+  /* Update cmd velocity */
+  updateCmdVel();
+
+  /* Transition handling */
+  const bool can_running = isCANRunning();
+  const bool drives_connected = allDrivesConnected();
+  const bool transition_ok = can_running && !_en_drives && drives_connected;
+
+  if (transition_ok) {
+    setNewState(BASE_STS_DRIVES_IDLE);
+  } else {
+    if (!can_running) {
+      setErrorState("CAN device failure! (Maybe not connected or down!)");
     }
-
-    /* Update cmd velocity */
-    updateCmdVel();
-
-    /* Transition handling */
-    const bool can_running = isCANRunning();
-    const bool drives_connected = allDrivesConnected();
-    const bool transition_ok = can_running && !_en_drives && drives_connected;
-
-    if (transition_ok) {
-        setNewState(BASE_STS_DRIVES_IDLE);
-    } else {
-        if (!can_running) {
-            setErrorState("CAN device failure! (Maybe not connected or down!)");
-        }
-        if (!drives_connected) {
-            setErrorState("One or more drives are not responding or connected!");
-        }
+    if (!drives_connected) {
+      setErrorState("One or more drives are not responding or connected!");
     }
+  }
 }
 
 void BaseController::enableAllDrives() {
-    try {
-        for (auto& drive : _drives) {
-            drive->enable();
-        }
-    } catch (can_exception& e) {
-        setErrorState("Error enabling all drives!");
+  try {
+    for (auto& drive : _drives) {
+      drive->enable();
     }
+  } catch (can_exception& e) {
+    setErrorState("Error enabling all drives!");
+  }
 }
 
 void BaseController::disableAllDrives() {
-    try {
-        for (auto& drive : _drives) {
-            drive->disable();
-        }
-    } catch (can_exception& e) {
-        setErrorState("Error disabling all drives!");
+  try {
+    for (auto& drive : _drives) {
+      drive->disable();
     }
+  } catch (can_exception& e) {
+    setErrorState("Error disabling all drives!");
+  }
 }
 
 void BaseController::updateAccelLimit() {
-    try {
-        if (abs(_active_accel_limit - _accel_limit_req) > 0.01F) {
-            for (auto& drive : _drives) {
-                drive->setAccelleration(_accel_limit_req);
-            }
-            _active_accel_limit = _accel_limit_req;
-        }
-    } catch (can_exception& e) {
-        setErrorState("Error setting accelleration limit!");
+  try {
+    if (abs(_active_accel_limit - _accel_limit_req) > 0.01F) {
+      for (auto& drive : _drives) {
+        drive->setAccelleration(_accel_limit_req);
+      }
+      _active_accel_limit = _accel_limit_req;
     }
+  } catch (can_exception& e) {
+    setErrorState("Error setting accelleration limit!");
+  }
 }
 
 void BaseController::updateCmdVel() {
-    try {
-        if (_cmd_vel_actv != _cmd_vel_req) {
-            for (auto& drive : _drives) {
-                drive->setSpeedRPM(_cmd_vel_req.getLinearVel());
-            }
-            _cmd_vel_actv = _cmd_vel_req;
-        }
-    } catch (can_exception& e) {
-        setErrorState("Error setting speed!");
-    }
+  const float mps_to_rpm = 60.0F / (_chassis_params.wheel_diameter_m * M_PI);
+  const float rps_to_rpm = 12.0F * ((_chassis_params.wheel_separation_x_m + _chassis_params.wheel_separation_y_m) /
+                                    _chassis_params.wheel_diameter_m);
+
+  const float linear_speed = _cmd_vel_req.getLinearVel() * mps_to_rpm;
+  const float angular_speed = _cmd_vel_req.getAngularVel() * rps_to_rpm;
+
+  const float speed_left = linear_speed - angular_speed;
+  const float speed_right = -(linear_speed - angular_speed);
+
+  std::cout << "Speed Left: " << speed_left << std::endl;
+  std::cout << "Speed Right: " << speed_right << std::endl;
+
+  try {
+    // if (_cmd_vel_actv != _cmd_vel_req) {
+    _drives.at(BASE_DRIVE_FRONT_LEFT)->setSpeedRPM(speed_left);
+    _drives.at(BASE_DRIVE_REAR_LEFT)->setSpeedRPM(speed_left);
+
+    _drives.at(BASE_DRIVE_FRONT_RIGHT)->setSpeedRPM(speed_right);
+    _drives.at(BASE_DRIVE_REAR_RIGHT)->setSpeedRPM(speed_right);
+
+    //_cmd_vel_actv = _cmd_vel_req;
+    //}
+  } catch (can_exception& e) {
+    setErrorState("Error setting speed!");
+  }
 }

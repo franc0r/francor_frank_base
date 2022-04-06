@@ -21,109 +21,125 @@
 constexpr std::size_t BASE_NUM_DRIVES = {4U};
 
 enum BaseDriveID {
-    BASE_DRIVE_FRONT_LEFT = 0,
-    BASE_DRIVE_FRONT_RIGHT = 1,
-    BASE_DRIVE_REAR_LEFT = 2,
-    BASE_DRIVE_REAR_RIGHT = 3,
+  BASE_DRIVE_FRONT_LEFT = 0,
+  BASE_DRIVE_FRONT_RIGHT = 1,
+  BASE_DRIVE_REAR_LEFT = 2,
+  BASE_DRIVE_REAR_RIGHT = 3,
 };
 
 enum BaseState {
-    BASE_STS_INIT = 0,
-    BASE_STS_OPEN_COM,
-    BASE_STS_DRIVES_INIT,
-    BASE_STS_DRIVES_IDLE,
-    BASE_STS_DRIVES_ENABLED,
-    BASE_STS_ERROR,
+  BASE_STS_INIT = 0,
+  BASE_STS_OPEN_COM,
+  BASE_STS_DRIVES_INIT,
+  BASE_STS_DRIVES_IDLE,
+  BASE_STS_DRIVES_ENABLED,
+  BASE_STS_ERROR,
 };
 
 struct BaseConfig {
-    BaseConfig();
-    BaseConfig(std::string& can, float error_heal_time_s);
+  BaseConfig();
+  BaseConfig(std::string& can, float error_heal_time_s);
 
-    std::string can;
-    float error_heal_time_s;
+  std::string can;
+  float error_heal_time_s;
 };
 
 class BaseCmdVel {
-   public:
-    BaseCmdVel() = default;
-    BaseCmdVel(const BaseCmdVel& cmd_vel) = default;
-    explicit BaseCmdVel(const float linear_vel, const float angular_vel)
-        : _linear_vel(linear_vel), _angular_vel(angular_vel) {}
+ public:
+  BaseCmdVel() = default;
+  BaseCmdVel(const BaseCmdVel& cmd_vel) = default;
+  explicit BaseCmdVel(const float linear_vel, const float angular_vel)
+      : _linear_vel(linear_vel), _angular_vel(angular_vel) {}
 
-    auto getLinearVel() const { return _linear_vel; }
-    auto getAngularVel() const { return _angular_vel; }
+  auto getLinearVel() const { return _linear_vel; }
+  auto getAngularVel() const { return _angular_vel; }
 
-    auto operator==(BaseCmdVel& rhs) const {
-        return ((abs(_linear_vel - rhs._linear_vel) < 0.0001F) && (abs(_angular_vel - rhs._angular_vel) < 0.0001F));
-    }
+  auto operator==(BaseCmdVel& rhs) const {
+    return ((abs(_linear_vel - rhs._linear_vel) < 0.0001F) && (abs(_angular_vel - rhs._angular_vel) < 0.0001F));
+  }
 
-    auto operator!=(BaseCmdVel& rhs) const {
-        return !((abs(_linear_vel - rhs._linear_vel) < 0.0001F) && (abs(_angular_vel - rhs._angular_vel) < 0.0001F));
-    }
+  auto operator!=(BaseCmdVel& rhs) const {
+    return !((abs(_linear_vel - rhs._linear_vel) < 0.0001F) && (abs(_angular_vel - rhs._angular_vel) < 0.0001F));
+  }
 
-   private:
-    float _linear_vel = {0.0F};
-    float _angular_vel = {0.0F};
+ private:
+  float _linear_vel = {0.0F};
+  float _angular_vel = {0.0F};
+};
+
+struct BaseChassisParams {
+  BaseChassisParams() = default;
+  BaseChassisParams(double gear_ratio, double wheel_diameter_m, double wheel_separation_x_m,
+                    double wheel_separation_y_m)
+      : gear_ratio(gear_ratio),
+        wheel_diameter_m(wheel_diameter_m),
+        wheel_separation_x_m(wheel_separation_x_m),
+        wheel_separation_y_m(wheel_separation_y_m) {}
+
+  float gear_ratio = {1.0};
+  float wheel_diameter_m = {0.0};
+  float wheel_separation_x_m = {0.0};
+  float wheel_separation_y_m = {0.0};
 };
 
 class BaseController {
-   public:
-    BaseController() = default;
-    explicit BaseController(BaseConfig& config);
-    ~BaseController();
+ public:
+  BaseController() = default;
+  explicit BaseController(BaseConfig& config, BaseChassisParams& chassis_params);
+  ~BaseController();
 
-    void enableDrives();
-    void disableDrives();
-    void resetErrors();
+  void enableDrives();
+  void disableDrives();
+  void resetErrors();
 
-    void setAccelLimit(float accel_limit);
-    void setCmdVel(BaseCmdVel cmd_vel);
+  void setAccelLimit(float accel_limit);
+  void setCmdVel(BaseCmdVel cmd_vel);
 
-    void stepStateMachine();
+  void stepStateMachine();
 
-    std::shared_ptr<francor::drive::Drive> getDrive(uint8_t idx);
+  std::shared_ptr<francor::drive::Drive> getDrive(uint8_t idx);
 
-    bool isCANRunning();
-    bool allDrivesConnected();
+  bool isCANRunning();
+  bool allDrivesConnected();
 
-   private:
-    void setNewState(BaseState state);
+ private:
+  void setNewState(BaseState state);
 
-    void setErrorState(std::string desc);
+  void setErrorState(std::string desc);
 
-    void runStsInit();
-    void runStsOpenCom();
-    void runStsDrivesInit();
-    void runStsDrivesIdle();
-    void runStsDrivesEnabled();
-    void runStsError();
+  void runStsInit();
+  void runStsOpenCom();
+  void runStsDrivesInit();
+  void runStsDrivesIdle();
+  void runStsDrivesEnabled();
+  void runStsError();
 
-    void enableAllDrives();
-    void disableAllDrives();
+  void enableAllDrives();
+  void disableAllDrives();
 
-    void updateAccelLimit();
-    void updateCmdVel();
+  void updateAccelLimit();
+  void updateCmdVel();
 
-    bool _en_drives = {false};
-    bool _reset_errors = {false};
+  bool _en_drives = {false};
+  bool _reset_errors = {false};
 
-    BaseConfig _config = {};
-    BaseState _active_state = {BASE_STS_INIT};
+  BaseConfig _config = {};
+  BaseChassisParams _chassis_params = {};
+  BaseState _active_state = {BASE_STS_INIT};
 
-    BaseState _pre_error_state = {BASE_STS_INIT};
-    std::chrono::steady_clock::time_point _error_time_point = {};
+  BaseState _pre_error_state = {BASE_STS_INIT};
+  std::chrono::steady_clock::time_point _error_time_point = {};
 
-    std::shared_ptr<francor::can::CAN> _can_if = {};
-    std::array<std::shared_ptr<francor::drive::Drive>, BASE_NUM_DRIVES> _drives = {};
+  std::shared_ptr<francor::can::CAN> _can_if = {};
+  std::array<std::shared_ptr<francor::drive::Drive>, BASE_NUM_DRIVES> _drives = {};
 
-    float _accel_limit_req = {0.0F};
-    float _active_accel_limit = {0.0F};
+  float _accel_limit_req = {0.0F};
+  float _active_accel_limit = {0.0F};
 
-    BaseCmdVel _cmd_vel_req = {};
-    BaseCmdVel _cmd_vel_actv = {};
+  BaseCmdVel _cmd_vel_req = {};
+  BaseCmdVel _cmd_vel_actv = {};
 
-    const std::string _logger = {"FrancorBaseController"};
+  const std::string _logger = {"FrancorBaseController"};
 };
 
 std::string getBaseStateDesc(BaseState state);

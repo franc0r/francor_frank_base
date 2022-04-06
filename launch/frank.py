@@ -11,7 +11,13 @@ def generate_launch_description():
             output="screen",
             emulate_tty=True,
             parameters=[
-                {"can": "can0"},
+                {
+                    "can": "can0",
+                    "gear_ratio": 6.0,
+                    "wheel_diameter_m": 0.02,
+                    "wheel_separation_x_m": 0.5,
+                    "wheel_separation_y_m": 0.5,
+                }
             ],
             arguments=['--ros-args', '--log-level', 'info']
         ),
