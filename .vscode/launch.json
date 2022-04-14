@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/../../install/francor_frank_base/lib/francor_frank_base/frank_base",
+        "args": [],
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}",
+        "environment": [],
+        "externalConsole": false, //set to true to see output in cmd instead
+        "MIMode": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ],
+        "preLaunchTask": "Build Debug"
+      },
+    ]
+}  
