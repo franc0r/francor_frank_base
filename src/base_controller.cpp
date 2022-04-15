@@ -156,7 +156,7 @@ bool BaseController::allDrivesConnected() {
       if (drive) {
         if (!drive->isConnected()) {
           RCLCPP_WARN(rclcpp::get_logger(_logger), "Drive ['%i-%s'] not connected!", drive_id,
-                      getDriveIDStr(static_cast<BaseDriveID>(drive_id)));
+                      getDriveIDStr(static_cast<BaseDriveID>(drive_id)).c_str());
           drives_connected = false;
         }
       } else {
