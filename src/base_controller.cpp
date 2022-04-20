@@ -392,7 +392,7 @@ void BaseController::updateCmdVel() {
   const float angular_speed = _cmd_vel_req.getAngularVel() * rps_to_rpm;
 
   const float speed_left = linear_speed - angular_speed;
-  const float speed_right = -(linear_speed - angular_speed);
+  const float speed_right = -(linear_speed + angular_speed);
 
   std::cout << "Speed Left: " << speed_left << std::endl;
   std::cout << "Speed Right: " << speed_right << std::endl;
