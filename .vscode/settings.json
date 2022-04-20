@@ -1,10 +1,11 @@
 {
-    "clangd.path": "/usr/bin/clangd-12",
+    "clangd.path": "/usr/bin/clangd",
     "clangd.arguments": [
         "--header-insertion=never"
     ],
-    "C_Cpp.clang_format_path": "/usr/bin/clang-format-12",
+    "C_Cpp.clang_format_path": "/usr/bin/clang-format",
     "C_Cpp.intelliSenseEngine": "Disabled",
     "editor.defaultFormatter": "xaver.clang-format",
     "editor.formatOnSave": true,
+    "clang-format.executable": "/usr/bin/clang-format",
 }

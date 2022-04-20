@@ -7,7 +7,7 @@
         "request": "launch",
         "program": "${workspaceFolder}/../../install/francor_frank_base/lib/francor_frank_base/frank_base",
         "args": [],
-        "stopAtEntry": false,
+        "stopAtEntry": true,
         "cwd": "${workspaceFolder}",
         "environment": [],
         "externalConsole": false, //set to true to see output in cmd instead

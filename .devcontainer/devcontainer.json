@@ -1,0 +1,13 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.231.6/containers/ubuntu
+{
+	"name": "FRANCOR ROS2 Base Workspace",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": { "VARIANT": "latest" },
+	},
+	"runArgs": ["--network=host"],
+	"workspaceMount": "source=${localWorkspaceFolder}/../,target=/opt/ros2_ws/src,type=bind",
+	"workspaceFolder": "/opt/ros2_ws/src/${localWorkspaceFolderBasename}",
+	"extensions": ["ms-vscode.cpptools-extension-pack", "llvm-vs-code-extensions.vscode-clangd", "xaver.clang-format"],
+}
