@@ -65,8 +65,12 @@ std::string getDriveIDStr(const BaseDriveID id) {
   return desc;
 }
 
-BaseConfig::BaseConfig() : can("can0"), error_heal_time_s(1.0F) {}
-BaseConfig::BaseConfig(std::string& can, float error_heal_time_s) : can(can), error_heal_time_s(error_heal_time_s) {}
+BaseConfig::BaseConfig() : can("can0"), auto_enable_on_start(false), auto_enable(false), error_heal_time_s(1.0F) {}
+BaseConfig::BaseConfig(std::string& can, bool auto_enable_on_start, bool auto_enable, float error_heal_time_s)
+    : can(can),
+      auto_enable_on_start(auto_enable_on_start),
+      auto_enable(auto_enable),
+      error_heal_time_s(error_heal_time_s) {}
 
 BaseController::BaseController(BaseConfig& config, BaseChassisParams& chassis_params)
     : _config(config), _chassis_params(chassis_params) {}
@@ -86,7 +90,8 @@ BaseController::~BaseController() {
 
 void BaseController::enableDrives() {
   if (_active_state == BASE_STS_DRIVES_IDLE) {
-    _en_drives = true;
+    _user_enable_request = true;
+    _user_disable_request = false;
   } else {
     std::stringstream desc;
     desc << "Transition to BASE_STS_DRIVES_ENABLED from '" << getBaseStateDesc(_active_state) << "' not possible!";
@@ -96,7 +101,8 @@ void BaseController::enableDrives() {
 
 void BaseController::disableDrives() {
   if (_active_state == BASE_STS_DRIVES_ENABLED) {
-    _en_drives = false;
+    _user_disable_request = true;
+    _user_enable_request = false;
   } else {
     std::stringstream desc;
     desc << "Transition to BASE_STS_DRIVES_IDLE from '" << getBaseStateDesc(_active_state) << "' not possible!";
@@ -109,6 +115,8 @@ void BaseController::setAccelLimit(float accel_limit) { _accel_limit_req = accel
 void BaseController::setCmdVel(BaseCmdVel cmd_vel) { _cmd_vel_req = cmd_vel; }
 
 void BaseController::stepStateMachine() {
+  runDriveStsHandling();
+
   switch (_active_state) {
     case BASE_STS_INIT:
       runStsInit();
@@ -169,6 +177,16 @@ bool BaseController::allDrivesConnected() {
   }
 
   return drives_connected;
+}
+
+void BaseController::runDriveStsHandling() {
+  const bool auto_enable = ((_config.auto_enable_on_start && _initial_startup) || (_config.auto_enable));
+
+  if (_active_state == BASE_STS_DRIVES_IDLE) {
+    _en_drives = (auto_enable && !_user_disable_request) || _user_enable_request;
+  } else if (_active_state == BASE_STS_DRIVES_ENABLED) {
+    _en_drives = (!_user_disable_request);
+  }
 }
 
 void BaseController::setNewState(const BaseState state) {
@@ -346,6 +364,10 @@ void BaseController::runStsDrivesEnabled() {
     }
     if (!drives_connected) {
       setErrorState("One or more drives are not responding or connected!");
+    }
+    if (drives_connected && can_running && _initial_startup) {
+      /* Initial startup done */
+      _initial_startup = false;
     }
   }
 }

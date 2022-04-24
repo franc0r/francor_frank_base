@@ -38,9 +38,11 @@ enum BaseState {
 
 struct BaseConfig {
   BaseConfig();
-  BaseConfig(std::string& can, float error_heal_time_s);
+  BaseConfig(std::string& can, bool auto_enable_on_start, bool auto_enable, float error_heal_time_s);
 
   std::string can;
+  bool auto_enable_on_start;
+  bool auto_enable;
   float error_heal_time_s;
 };
 
@@ -103,6 +105,7 @@ class BaseController {
   bool allDrivesConnected();
 
  private:
+  void runDriveStsHandling();
   void setNewState(BaseState state);
 
   void setErrorState(std::string desc);
@@ -120,6 +123,10 @@ class BaseController {
   void updateAccelLimit();
   void updateCmdVel();
 
+  bool _user_enable_request = {false};
+  bool _user_disable_request = {false};
+
+  bool _initial_startup = {true};
   bool _en_drives = {false};
   bool _reset_errors = {false};
 

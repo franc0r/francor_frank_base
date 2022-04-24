@@ -63,6 +63,8 @@ class FrankBase : public rclcpp::Node {
   std::atomic<float> _cmd_lin_x;
   std::atomic<float> _cmd_ang_z;
   float _accel_limit;
+  bool _auto_enable_on_start;
+  bool _auto_enable;
 };
 
 FrankBase::FrankBase() : Node("frank_base") {
@@ -83,6 +85,8 @@ void FrankBase::resetVariables() {
 
 void FrankBase::declareParams() {
   this->declare_parameter<std::string>("can", "can0");
+  this->declare_parameter<bool>("auto_enable_on_start", false);
+  this->declare_parameter<bool>("auto_enable", false);
   this->declare_parameter<float>("accel_limit", DFT_ACCEL_LIMIT);
   this->declare_parameter<float>("gear_ratio", 1.0);
   this->declare_parameter<float>("wheel_diameter_m", 1.0);
@@ -92,22 +96,26 @@ void FrankBase::declareParams() {
 
 void FrankBase::readParams() {
   this->get_parameter("can", _can_name);
+  this->get_parameter("auto_enable_on_start", _auto_enable_on_start);
+  this->get_parameter("auto_enable", _auto_enable);
   this->get_parameter("accel_limit", _accel_limit);
   this->get_parameter("gear_ratio", _chassis_params.gear_ratio);
   this->get_parameter("wheel_diameter_m", _chassis_params.wheel_diameter_m);
   this->get_parameter("wheel_separation_x_m", _chassis_params.wheel_separation_x_m);
   this->get_parameter("wheel_separation_y_m", _chassis_params.wheel_separation_y_m);
 
-  RCLCPP_INFO(this->get_logger(), "CAN %s", _can_name.c_str());                                      // NOLINT
-  RCLCPP_INFO(this->get_logger(), "Accelleration Limit %.2f", _accel_limit);                         // NOLINT
-  RCLCPP_INFO(this->get_logger(), "gear_ratio %f", _chassis_params.gear_ratio);                      // NOLINT
-  RCLCPP_INFO(this->get_logger(), "wheel_diameter_m %f", _chassis_params.wheel_diameter_m);          // NOLINT
-  RCLCPP_INFO(this->get_logger(), "wheel_separation_x_m %f", _chassis_params.wheel_separation_x_m);  // NOLINT
-  RCLCPP_INFO(this->get_logger(), "wheel_separation_y_m %f", _chassis_params.wheel_separation_y_m);  // NOLINT
+  RCLCPP_INFO(this->get_logger(), "CAN %s", _can_name.c_str());                                         // NOLINT
+  RCLCPP_INFO(this->get_logger(), "Auto enable on start %i", static_cast<int>(_auto_enable_on_start));  // NOLINT
+  RCLCPP_INFO(this->get_logger(), "Auto enable %i", static_cast<int>(_auto_enable));                    // NOLINT
+  RCLCPP_INFO(this->get_logger(), "Accelleration Limit %.2f", _accel_limit);                            // NOLINT
+  RCLCPP_INFO(this->get_logger(), "gear_ratio %f", _chassis_params.gear_ratio);                         // NOLINT
+  RCLCPP_INFO(this->get_logger(), "wheel_diameter_m %f", _chassis_params.wheel_diameter_m);             // NOLINT
+  RCLCPP_INFO(this->get_logger(), "wheel_separation_x_m %f", _chassis_params.wheel_separation_x_m);     // NOLINT
+  RCLCPP_INFO(this->get_logger(), "wheel_separation_y_m %f", _chassis_params.wheel_separation_y_m);     // NOLINT
 }
 
 void FrankBase::createBaseController() {
-  BaseConfig base_config = BaseConfig(_can_name, 1.0F);
+  BaseConfig base_config = BaseConfig(_can_name, _auto_enable_on_start, _auto_enable, 1.0F);
   this->_base_controller = std::make_shared<BaseController>(base_config, _chassis_params);
   this->_base_controller->setAccelLimit(_accel_limit);
 }
