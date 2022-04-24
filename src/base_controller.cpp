@@ -394,9 +394,6 @@ void BaseController::updateCmdVel() {
   const float speed_left = linear_speed - angular_speed;
   const float speed_right = -(linear_speed + angular_speed);
 
-  std::cout << "Speed Left: " << speed_left << std::endl;
-  std::cout << "Speed Right: " << speed_right << std::endl;
-
   try {
     // if (_cmd_vel_actv != _cmd_vel_req) {
     _drives.at(BASE_DRIVE_FRONT_LEFT)->setSpeedRPM(speed_left);

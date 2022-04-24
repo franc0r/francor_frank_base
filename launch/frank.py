@@ -13,6 +13,7 @@ def generate_launch_description():
             parameters=[
                 {
                     "can": "can0",
+                    "accel_limit": 25.0,
                     "gear_ratio": 6.0,
                     "wheel_diameter_m": 0.02,
                     "wheel_separation_x_m": 0.5,
