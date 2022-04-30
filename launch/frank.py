@@ -14,7 +14,7 @@ def generate_launch_description():
                 {
                     "can": "can0",
                     "auto_enable_on_start": False,
-                    "auto_enable": False,
+                    "auto_enable": True,
                     "accel_limit": 25.0,
                     "gear_ratio": 6.0,
                     "wheel_diameter_m": 0.02,
