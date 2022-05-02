@@ -11,6 +11,5 @@ jobs:
       - uses: actions/checkout@v1
       - name: Build
         run: |
-          pwd
-          ls
+          source /opt/ros/$ROS_DISTRO/setup.bash
           colcon build
