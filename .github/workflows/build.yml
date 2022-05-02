@@ -1,0 +1,16 @@
+name: 'Build FRANCOR Frank Base Package'
+description: 'Builds the FRANCOR Frank Base Package to test it'
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-package:
+    runs-on: ubuntu-latest
+    container: franc0r/ros2-francor-dev:galactic
+    steps:
+      - run: |
+          ls
+          pwd
+          echo Hello World
+        name: Test
