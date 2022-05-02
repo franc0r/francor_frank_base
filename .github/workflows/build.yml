@@ -1,5 +1,4 @@
-name: 'Build FRANCOR Frank Base Package'
-description: 'Builds the FRANCOR Frank Base Package to test it'
+name: Build FRANCOR Frank Base Package
 on:
   push:
     branches: [ master ]
