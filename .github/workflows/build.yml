@@ -9,8 +9,8 @@ jobs:
     container: franc0r/ros2-francor-dev:galactic
     steps:
       - uses: actions/checkout@v1
-      - name: Test
-        working-directory: ./francor_frank_base
+      - name: Build
         run: |
-          ls
           pwd
+          ls
+          colcon build
