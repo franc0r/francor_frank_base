@@ -10,7 +10,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        path: francor_frank_base
+        working-directory: ./francor_frank_base
+        run: |
+          ls
+          pwd
       - name: Build
         run: |
           ls
