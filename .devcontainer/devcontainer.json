@@ -11,6 +11,7 @@
 		//"--gpus",
 		//"all",
 		"--net=host",
+		"--pid=host",
 		"--env=DISPLAY",
 		// "-e",
 		// "QT_X11_NO_MITSHM=1",

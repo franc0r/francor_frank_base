@@ -6,7 +6,7 @@
         {
             "label": "Build",
             "type": "shell",
-            "command": "colcon build --packages-select francor_frank_base --symlink-install --allow-overriding francor_frank_base && cp build/compile_commands.json ${workspaceFolder}",
+            "command": "colcon build --packages-select francor_frank_base --symlink-install && cp build/compile_commands.json ${workspaceFolder}",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -17,7 +17,7 @@
         {
             "label": "Build Debug",
             "type": "shell",
-            "command": "colcon build --packages-select francor_frank_base --symlink-install --allow-overriding francor_frank_base --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo && cp build/compile_commands.json ${workspaceFolder}",
+            "command": "colcon build --packages-select francor_frank_base --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo && cp build/compile_commands.json ${workspaceFolder}",
             "group": "build",
             "problemMatcher":"$gcc",
             "options": {"cwd": "${workspaceFolder}/../../"}
