@@ -6,6 +6,7 @@
 #include <string>
 
 #include "geometry_msgs/msg/twist.hpp"
+#include "rclcpp/qos.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float32.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -127,17 +128,17 @@ void FrankBase::createServices() {
 
 void FrankBase::createPublishers() {
   for (auto idx = 0U; idx < BASE_NUM_DRIVES; idx++) {
-    _speed_pub_lst.at(idx) =
-        create_publisher<std_msgs::msg::Float32>(getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/speed", 1);
+    _speed_pub_lst.at(idx) = create_publisher<std_msgs::msg::Float32>(
+        getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/speed", rclcpp::QoS(1).best_effort());
 
-    _torque_pub_lst.at(idx) =
-        create_publisher<std_msgs::msg::Float32>(getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/torque", 1);
+    _torque_pub_lst.at(idx) = create_publisher<std_msgs::msg::Float32>(
+        getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/torque", rclcpp::QoS(1).best_effort());
 
-    _tempC_pub_lst.at(idx) =
-        create_publisher<std_msgs::msg::Float32>(getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/temp", 1);
+    _tempC_pub_lst.at(idx) = create_publisher<std_msgs::msg::Float32>(
+        getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/temp", rclcpp::QoS(1).best_effort());
 
-    _voltV_pub_lst.at(idx) =
-        create_publisher<std_msgs::msg::Float32>(getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/voltage", 1);
+    _voltV_pub_lst.at(idx) = create_publisher<std_msgs::msg::Float32>(
+        getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/voltage", rclcpp::QoS(1).best_effort());
   }
 }
 
@@ -166,7 +167,7 @@ void FrankBase::publish() {
 }
 
 void FrankBase::createSubscriber() {
-  _speed_subs = this->create_subscription<TwistMsg>("cmd_vel", 1,
+  _speed_subs = this->create_subscription<TwistMsg>("cmd_vel", rclcpp::QoS(1).best_effort(),
                                                     std::bind(&FrankBase::cbCmdVelocity, this, std::placeholders::_1));
 }
 
