@@ -3,6 +3,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <rclcpp/time.hpp>
 #include <string>
 
 #include "geometry_msgs/msg/twist.hpp"
@@ -23,6 +24,8 @@ using TwistMsgSub = rclcpp::Subscription<TwistMsg>;
 using Float32Msg = std_msgs::msg::Float32;
 using Float32MsgSub = rclcpp::Subscription<Float32Msg>;
 using Float32MsgPub = rclcpp::Publisher<Float32Msg>;
+using Clock = std::chrono::steady_clock;
+using ClockTimePoint = std::chrono::time_point<std::chrono::steady_clock>;
 
 class FrankBase : public rclcpp::Node {
  public:
@@ -47,8 +50,12 @@ class FrankBase : public rclcpp::Node {
 
   void cbCmdVelocity(TwistMsg::SharedPtr cmd_vel);
 
+  void setCmdVel();
+
   std::string _can_name;
   BaseChassisParams _chassis_params;
+  double _cmd_vel_max_timeout_s;
+  bool _en_cmd_vel_timeout;
 
   rclcpp::TimerBase::SharedPtr _param_read_timer;
   rclcpp::TimerBase::SharedPtr _base_step_timer;
@@ -61,8 +68,10 @@ class FrankBase : public rclcpp::Node {
   std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _voltV_pub_lst;
   TwistMsgSub::SharedPtr _speed_subs;
 
+  ClockTimePoint _cmd_vel_timestamp;
   std::atomic<float> _cmd_lin_x;
   std::atomic<float> _cmd_ang_z;
+
   float _accel_limit;
   bool _auto_enable_on_start;
   bool _auto_enable;
@@ -86,6 +95,8 @@ void FrankBase::resetVariables() {
 
 void FrankBase::declareParams() {
   this->declare_parameter<std::string>("can", "can0");
+  this->declare_parameter<double>("cmd_vel_max_timeout_s", 1.0);
+  this->declare_parameter<bool>("enable_cmd_vel_timeout", true);
   this->declare_parameter<bool>("auto_enable_on_start", false);
   this->declare_parameter<bool>("auto_enable", false);
   this->declare_parameter<float>("accel_limit", DFT_ACCEL_LIMIT);
@@ -97,6 +108,8 @@ void FrankBase::declareParams() {
 
 void FrankBase::readParams() {
   this->get_parameter("can", _can_name);
+  this->get_parameter("cmd_vel_max_timeout_s", _cmd_vel_max_timeout_s);
+  this->get_parameter("enable_cmd_vel_timeout", _en_cmd_vel_timeout);
   this->get_parameter("auto_enable_on_start", _auto_enable_on_start);
   this->get_parameter("auto_enable", _auto_enable);
   this->get_parameter("accel_limit", _accel_limit);
@@ -105,14 +118,18 @@ void FrankBase::readParams() {
   this->get_parameter("wheel_separation_x_m", _chassis_params.wheel_separation_x_m);
   this->get_parameter("wheel_separation_y_m", _chassis_params.wheel_separation_y_m);
 
-  RCLCPP_INFO(this->get_logger(), "CAN %s", _can_name.c_str());                                         // NOLINT
-  RCLCPP_INFO(this->get_logger(), "Auto enable on start %i", static_cast<int>(_auto_enable_on_start));  // NOLINT
-  RCLCPP_INFO(this->get_logger(), "Auto enable %i", static_cast<int>(_auto_enable));                    // NOLINT
-  RCLCPP_INFO(this->get_logger(), "Accelleration Limit %.2f", _accel_limit);                            // NOLINT
-  RCLCPP_INFO(this->get_logger(), "gear_ratio %f", _chassis_params.gear_ratio);                         // NOLINT
-  RCLCPP_INFO(this->get_logger(), "wheel_diameter_m %f", _chassis_params.wheel_diameter_m);             // NOLINT
-  RCLCPP_INFO(this->get_logger(), "wheel_separation_x_m %f", _chassis_params.wheel_separation_x_m);     // NOLINT
-  RCLCPP_INFO(this->get_logger(), "wheel_separation_y_m %f", _chassis_params.wheel_separation_y_m);     // NOLINT
+  RCLCPP_INFO(this->get_logger(), "CAN %s", _can_name.c_str());                                              // NOLINT
+  RCLCPP_INFO(this->get_logger(), "Cmd Velocity Timeout %f", _cmd_vel_max_timeout_s);                        // NOLINT
+  RCLCPP_INFO(this->get_logger(), "Enable Cmd Velocity Timeout %i", static_cast<int>(_en_cmd_vel_timeout));  // NOLINT
+  RCLCPP_INFO(this->get_logger(), "Auto enable on start %i", static_cast<int>(_auto_enable_on_start));       // NOLINT
+  RCLCPP_INFO(this->get_logger(), "Auto enable %i", static_cast<int>(_auto_enable));                         // NOLINT
+  RCLCPP_INFO(this->get_logger(), "Accelleration Limit %.2f", _accel_limit);                                 // NOLINT
+  RCLCPP_INFO(this->get_logger(), "gear_ratio %f", _chassis_params.gear_ratio);                              // NOLINT
+  RCLCPP_INFO(this->get_logger(), "wheel_diameter_m %f", _chassis_params.wheel_diameter_m);                  // NOLINT
+  RCLCPP_INFO(this->get_logger(), "wheel_separation_x_m %f", _chassis_params.wheel_separation_x_m);          // NOLINT
+  RCLCPP_INFO(this->get_logger(), "wheel_separation_y_m %f", _chassis_params.wheel_separation_y_m);          // NOLINT
+
+  _cmd_vel_max_timeout_s = 1.0F;
 }
 
 void FrankBase::createBaseController() {
@@ -178,7 +195,7 @@ void FrankBase::createTimers() {
 
 void FrankBase::cbBaseStep() {
   _base_controller->stepStateMachine();
-  _base_controller->setCmdVel(BaseCmdVel(_cmd_lin_x, _cmd_ang_z));
+  setCmdVel();
   _base_controller->setAccelLimit(_accel_limit);
 
   publish();
@@ -202,8 +219,22 @@ void FrankBase::cbEnableDrives(const std::shared_ptr<std_srvs::srv::SetBool::Req
 }
 
 void FrankBase::cbCmdVelocity(const TwistMsg::SharedPtr cmd_vel) {
+  _cmd_vel_timestamp = Clock::now();
   _cmd_lin_x = static_cast<float>(cmd_vel->linear.x);
   _cmd_ang_z = static_cast<float>(cmd_vel->angular.z);
+}
+
+void FrankBase::setCmdVel() {
+  const int delta_ms = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - _cmd_vel_timestamp).count();
+  const int max_timeout_ms = static_cast<int>(_cmd_vel_max_timeout_s) * 1000;
+
+  if (delta_ms < max_timeout_ms || !_en_cmd_vel_timeout) {
+    _base_controller->setCmdVel(BaseCmdVel(_cmd_lin_x, _cmd_ang_z));
+  } else {
+    auto steady_clock = rclcpp::Clock();
+    _base_controller->setCmdVel(BaseCmdVel(0.0, 0.0));
+    RCLCPP_WARN_STREAM_THROTTLE(this->get_logger(), steady_clock, 1000, "Cmd velocity timeout!");  // NOLINT
+  }
 }
 
 int main(int argc, char* argv[]) {

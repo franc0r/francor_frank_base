@@ -13,6 +13,8 @@ def generate_launch_description():
             parameters=[
                 {
                     "can": "can0",
+                    "cmd_vel_max_timeout_s" : 0.5,
+                    "enable_cmd_vel_timeout" : False,
                     "auto_enable_on_start": False,
                     "auto_enable": True,
                     "accel_limit": 25.0,
