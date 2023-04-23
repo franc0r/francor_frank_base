@@ -37,7 +37,7 @@ target_include_directories(frank_base PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(frank_base francor-drive Eigen3::Eigen)
-ament_target_dependencies(frank_base rclcpp std_msgs std_srvs geometry_msgs)
+ament_target_dependencies(frank_base rclcpp std_msgs std_srvs geometry_msgs nav_msgs)
 
 install(TARGETS frank_base
   DESTINATION lib/${PROJECT_NAME})

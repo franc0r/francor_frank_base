@@ -7,6 +7,7 @@
 #include <string>
 
 #include "geometry_msgs/msg/twist.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/qos.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float32.hpp"
@@ -24,6 +25,8 @@ using TwistMsgSub = rclcpp::Subscription<TwistMsg>;
 using Float32Msg = std_msgs::msg::Float32;
 using Float32MsgSub = rclcpp::Subscription<Float32Msg>;
 using Float32MsgPub = rclcpp::Publisher<Float32Msg>;
+using OdomMsg = nav_msgs::msg::Odometry;
+using OdomMsgPub = rclcpp::Publisher<OdomMsg>;
 using Clock = std::chrono::steady_clock;
 using ClockTimePoint = std::chrono::time_point<std::chrono::steady_clock>;
 
@@ -56,6 +59,7 @@ class FrankBase : public rclcpp::Node {
   BaseChassisParams _chassis_params;
   double _cmd_vel_max_timeout_s;
   bool _en_cmd_vel_timeout;
+  OdomMsg _odom_msg;
 
   rclcpp::TimerBase::SharedPtr _param_read_timer;
   rclcpp::TimerBase::SharedPtr _base_step_timer;
@@ -67,6 +71,7 @@ class FrankBase : public rclcpp::Node {
   std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _tempC_pub_lst;
   std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _voltV_pub_lst;
   TwistMsgSub::SharedPtr _speed_subs;
+  OdomMsgPub::SharedPtr _odom_pub;
 
   ClockTimePoint _cmd_vel_timestamp;
   std::atomic<float> _cmd_lin_x;
@@ -157,6 +162,8 @@ void FrankBase::createPublishers() {
     _voltV_pub_lst.at(idx) = create_publisher<std_msgs::msg::Float32>(
         getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/voltage", rclcpp::QoS(1).best_effort());
   }
+
+  _odom_pub = create_publisher<OdomMsg>("odom", rclcpp::QoS(1).best_effort());
 }
 
 void FrankBase::publish() {
@@ -180,6 +187,8 @@ void FrankBase::publish() {
         RCLCPP_WARN(this->get_logger(), "Error publishing drive ['%i'] state", idx);  // NOLINT
       }
     }
+
+    _odom_pub->publish(_odom_msg);
   }
 }
 
