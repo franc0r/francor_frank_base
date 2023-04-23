@@ -107,6 +107,9 @@ class BaseController {
 
   std::shared_ptr<francor::drive::Drive> getDrive(uint8_t idx);
 
+  Eigen::Vector3f getPose() const;
+  Eigen::Vector3f getVelocity() const;
+
   bool isCANRunning();
   bool allDrivesConnected();
 
@@ -155,7 +158,7 @@ class BaseController {
   BaseCmdVel _cmd_vel_actv = {};
 
   Eigen::Vector3f _velocity = {};
-  Eigen::Vector3f _position = {};
+  Eigen::Vector3f _pose = {};
 
   const std::string _logger = {"FrancorBaseController"};
 };

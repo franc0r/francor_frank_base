@@ -114,7 +114,7 @@ void BaseController::disableDrives() {
 
 void BaseController::resetOdometry() {
   this->_velocity = Eigen::Vector3f();
-  this->_position = Eigen::Vector3f();
+  this->_pose = Eigen::Vector3f();
 }
 
 void BaseController::setAccelLimit(float accel_limit) { _accel_limit_req = accel_limit; }
@@ -122,23 +122,37 @@ void BaseController::setAccelLimit(float accel_limit) { _accel_limit_req = accel
 void BaseController::setCmdVel(BaseCmdVel cmd_vel) { _cmd_vel_req = cmd_vel; }
 
 void BaseController::updateOdometry(float dT) {
-  try {
-    Eigen::Vector4f speed_radps;
-    speed_radps(0) = _drives.at(BASE_DRIVE_FRONT_LEFT)->getCurrentSpeedRPM();
-    speed_radps(1) = _drives.at(BASE_DRIVE_REAR_LEFT)->getCurrentSpeedRPM();
-    speed_radps(2) = _drives.at(BASE_DRIVE_FRONT_RIGHT)->getCurrentSpeedRPM();
-    speed_radps(3) = _drives.at(BASE_DRIVE_REAR_RIGHT)->getCurrentSpeedRPM();
-    speed_radps *= ((2.0F * M_PI) / 60.0F);
+  if (_active_state == BASE_STS_DRIVES_ENABLED || _active_state == BASE_STS_DRIVES_IDLE) {
+    try {
+      Eigen::Vector4f speed_radps;
+      speed_radps(0) = _drives.at(BASE_DRIVE_FRONT_LEFT)->getCurrentSpeedRPM();
+      speed_radps(1) = _drives.at(BASE_DRIVE_REAR_LEFT)->getCurrentSpeedRPM();
+      speed_radps(2) = _drives.at(BASE_DRIVE_FRONT_RIGHT)->getCurrentSpeedRPM();
+      speed_radps(3) = _drives.at(BASE_DRIVE_REAR_RIGHT)->getCurrentSpeedRPM();
+      speed_radps *= ((2.0F * M_PI) / 60.0F);
 
-    this->_velocity = _chassis_params.kinematic_matrix_inv * speed_radps;
-    this->_velocity(2) *= -1.0F;
+      this->_velocity = _chassis_params.kinematic_matrix_inv * speed_radps;
+      this->_velocity(2) *= -1.0F;
 
-    this->_position += this->_velocity * dT;
+      Eigen::Vector3f dPose = this->_velocity * dT;
 
-  } catch (can_exception& e) {
+      this->_pose(2) = this->_pose(2) + dPose.z();
+
+      if (this->_pose.z() > (2.0F * M_PI)) {
+        this->_pose(2) = this->_pose(2) - 2.0F * M_PI;
+      }
+
+      if (this->_pose.z() < 0.0F) {
+        this->_pose(2) = this->_pose(2) + 2.0F * M_PI;
+      }
+
+      this->_pose(0) = this->_pose.x() + dPose.x() * cos(this->_pose.z());
+      this->_pose(1) = this->_pose.y() + dPose.x() * sin(this->_pose.z());
+    } catch (can_exception& e) {
+      setErrorState("Error updating odometry!");
+    }
+  } else {
     this->_velocity = Eigen::Vector3f();
-
-    setErrorState("Error updating odometry!");
   }
 }
 
@@ -168,6 +182,10 @@ void BaseController::stepStateMachine() {
 }
 
 std::shared_ptr<francor::drive::Drive> BaseController::getDrive(uint8_t idx) { return _drives.at(idx); }
+
+Eigen::Vector3f BaseController::getPose() const { return _pose; }
+
+Eigen::Vector3f BaseController::getVelocity() const { return _velocity; }
 
 bool BaseController::isCANRunning() {
   bool can_running = {false};

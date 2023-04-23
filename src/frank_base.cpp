@@ -54,6 +54,7 @@ class FrankBase : public rclcpp::Node {
   void cbCmdVelocity(TwistMsg::SharedPtr cmd_vel);
 
   void setCmdVel();
+  void updateOdom();
 
   std::string _can_name;
   BaseChassisParams _chassis_params;
@@ -74,6 +75,7 @@ class FrankBase : public rclcpp::Node {
   OdomMsgPub::SharedPtr _odom_pub;
 
   ClockTimePoint _cmd_vel_timestamp;
+  ClockTimePoint _odom_timestamp;
   std::atomic<float> _cmd_lin_x;
   std::atomic<float> _cmd_ang_z;
 
@@ -96,6 +98,8 @@ FrankBase::FrankBase() : Node("frank_base") {
 void FrankBase::resetVariables() {
   _cmd_lin_x = 0.0F;
   _cmd_ang_z = 0.0F;
+
+  _odom_timestamp = Clock::now();
 }
 
 void FrankBase::declareParams() {
@@ -163,7 +167,7 @@ void FrankBase::createPublishers() {
         getDriveIDStr(static_cast<BaseDriveID>(idx)) + "/voltage", rclcpp::QoS(1).best_effort());
   }
 
-  _odom_pub = create_publisher<OdomMsg>("odom", rclcpp::QoS(1).best_effort());
+  _odom_pub = this->create_publisher<OdomMsg>("odom", rclcpp::QoS(10).best_effort());
 }
 
 void FrankBase::publish() {
@@ -205,6 +209,7 @@ void FrankBase::createTimers() {
 void FrankBase::cbBaseStep() {
   _base_controller->stepStateMachine();
   setCmdVel();
+  updateOdom();
   _base_controller->setAccelLimit(_accel_limit);
 
   publish();
@@ -244,6 +249,28 @@ void FrankBase::setCmdVel() {
     _base_controller->setCmdVel(BaseCmdVel(0.0, 0.0));
     RCLCPP_WARN_STREAM_THROTTLE(this->get_logger(), steady_clock, 1000, "Cmd velocity timeout!");  // NOLINT
   }
+}
+
+void FrankBase::updateOdom() {
+  const int delta_ms = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - _odom_timestamp).count();
+  const float delta_sec = static_cast<float>(delta_ms) * 0.001F;
+
+  _base_controller->updateOdometry(delta_sec);
+
+  const Eigen::Vector3f velocity = _base_controller->getVelocity();
+  const Eigen::Vector3f pose = _base_controller->getPose();
+
+  _odom_msg.header.stamp = this->get_clock()->now();
+  _odom_msg.header.frame_id = "odom";
+  _odom_msg.child_frame_id = "base_footprint";
+  _odom_msg.twist.twist.linear.x = velocity.x();
+  _odom_msg.twist.twist.angular.z = velocity.z();
+  _odom_msg.pose.pose.position.x = pose.x();
+  _odom_msg.pose.pose.position.y = pose.y();
+  _odom_msg.pose.pose.orientation.z = sin(pose.z() * 0.5F);
+  _odom_msg.pose.pose.orientation.w = cos(pose.z() * 0.5F);
+
+  _odom_timestamp = Clock::now();
 }
 
 int main(int argc, char* argv[]) {
