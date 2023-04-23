@@ -131,7 +131,7 @@ void BaseController::updateOdometry(float dT) {
       speed_radps(3) = _drives.at(BASE_DRIVE_REAR_RIGHT)->getCurrentSpeedRPM();
       speed_radps *= ((2.0F * M_PI) / 60.0F);
 
-      this->_velocity = _chassis_params.kinematic_matrix_inv * speed_radps;
+      this->_velocity = _chassis_params.kinematic_matrix_inv * speed_radps * _chassis_params.odom_factor;
       this->_velocity(2) *= -1.0F;
 
       Eigen::Vector3f dPose = this->_velocity * dT;

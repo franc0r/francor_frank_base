@@ -83,6 +83,7 @@ struct BaseChassisParams {
   float wheel_diameter_m = {0.0};
   float wheel_separation_x_m = {0.0};
   float wheel_separation_y_m = {0.0};
+  float odom_factor = {1.0};
 
   Eigen::MatrixXf kinematic_matrix = {};
   Eigen::MatrixXf kinematic_matrix_inv = {};

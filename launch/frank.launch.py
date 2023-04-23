@@ -19,9 +19,10 @@ def generate_launch_description():
                     "auto_enable": True,
                     "accel_limit": 25.0,
                     "gear_ratio": 6.0,
-                    "wheel_diameter_m": 0.02,
-                    "wheel_separation_x_m": 0.5,
-                    "wheel_separation_y_m": 0.5,
+                    "wheel_diameter_m": 0.0315,
+                    "wheel_separation_x_m": 0.41,
+                    "wheel_separation_y_m": 0.53,
+                    "odom_fac": 1.3,
                 }
             ],
             arguments=['--ros-args', '--log-level', 'info']

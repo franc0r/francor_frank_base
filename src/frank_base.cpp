@@ -12,6 +12,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float32.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_srvs/srv/empty.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_ros/transform_broadcaster.h"
@@ -21,6 +22,7 @@ constexpr float DFT_ACCEL_LIMIT = 25.0F;  //!< Default accelleration limit rpm/s
 using namespace std::chrono_literals;
 
 using BoolSrv = rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr;
+using EmptySrv = rclcpp::Service<std_srvs::srv::Empty>::SharedPtr;
 
 using TwistMsg = geometry_msgs::msg::Twist;
 using TwistMsgSub = rclcpp::Subscription<TwistMsg>;
@@ -53,6 +55,9 @@ class FrankBase : public rclcpp::Node {
   void cbEnableDrives(std::shared_ptr<std_srvs::srv::SetBool::Request> request,
                       std::shared_ptr<std_srvs::srv::SetBool::Response> response);
 
+  void cbResetOdom(std::shared_ptr<std_srvs::srv::Empty::Request> request,
+                   std::shared_ptr<std_srvs::srv::Empty::Response> response);
+
   void cbCmdVelocity(TwistMsg::SharedPtr cmd_vel);
 
   void setCmdVel();
@@ -68,6 +73,7 @@ class FrankBase : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr _base_step_timer;
 
   BoolSrv _enable_drives_srv;
+  EmptySrv _reset_odom_srv;
   std::shared_ptr<BaseController> _base_controller;
   std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _speed_pub_lst;
   std::array<Float32MsgPub::SharedPtr, BASE_NUM_DRIVES> _torque_pub_lst;
@@ -115,6 +121,7 @@ void FrankBase::declareParams() {
   this->declare_parameter<float>("wheel_diameter_m", 1.0);
   this->declare_parameter<float>("wheel_separation_x_m", 1.0);
   this->declare_parameter<float>("wheel_separation_y_m", 1.0);
+  this->declare_parameter<float>("odom_fac", 1.0);
 }
 
 void FrankBase::readParams() {
@@ -128,6 +135,7 @@ void FrankBase::readParams() {
   this->get_parameter("wheel_diameter_m", _chassis_params.wheel_diameter_m);
   this->get_parameter("wheel_separation_x_m", _chassis_params.wheel_separation_x_m);
   this->get_parameter("wheel_separation_y_m", _chassis_params.wheel_separation_y_m);
+  this->get_parameter("odom_fac", _chassis_params.odom_factor);
 
   RCLCPP_INFO(this->get_logger(), "CAN %s", _can_name.c_str());                                              // NOLINT
   RCLCPP_INFO(this->get_logger(), "Cmd Velocity Timeout %f", _cmd_vel_max_timeout_s);                        // NOLINT
@@ -139,6 +147,7 @@ void FrankBase::readParams() {
   RCLCPP_INFO(this->get_logger(), "wheel_diameter_m %f", _chassis_params.wheel_diameter_m);                  // NOLINT
   RCLCPP_INFO(this->get_logger(), "wheel_separation_x_m %f", _chassis_params.wheel_separation_x_m);          // NOLINT
   RCLCPP_INFO(this->get_logger(), "wheel_separation_y_m %f", _chassis_params.wheel_separation_y_m);          // NOLINT
+  RCLCPP_INFO(this->get_logger(), "odom_fac %f", _chassis_params.odom_factor);                               // NOLINT
 
   _cmd_vel_max_timeout_s = 1.0F;
 }
@@ -152,6 +161,9 @@ void FrankBase::createBaseController() {
 void FrankBase::createServices() {
   _enable_drives_srv = create_service<std_srvs::srv::SetBool>(
       "enable_drives", std::bind(&FrankBase::cbEnableDrives, this, std::placeholders::_1, std::placeholders::_2));
+
+  _reset_odom_srv = create_service<std_srvs::srv::Empty>(
+      "reset_odom", std::bind(&FrankBase::cbResetOdom, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void FrankBase::createPublishers() {
@@ -232,6 +244,13 @@ void FrankBase::cbEnableDrives(const std::shared_ptr<std_srvs::srv::SetBool::Req
     response->success = false;
     response->message = e.what();
   }
+}
+
+void FrankBase::cbResetOdom(std::shared_ptr<std_srvs::srv::Empty::Request> request,
+                            std::shared_ptr<std_srvs::srv::Empty::Response> response) {
+  (void)request;
+  (void)response;
+  _base_controller->resetOdometry();
 }
 
 void FrankBase::cbCmdVelocity(const TwistMsg::SharedPtr cmd_vel) {
