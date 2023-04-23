@@ -112,9 +112,35 @@ void BaseController::disableDrives() {
   }
 }
 
+void BaseController::resetOdometry() {
+  this->_velocity = Eigen::Vector3f();
+  this->_position = Eigen::Vector3f();
+}
+
 void BaseController::setAccelLimit(float accel_limit) { _accel_limit_req = accel_limit; }
 
 void BaseController::setCmdVel(BaseCmdVel cmd_vel) { _cmd_vel_req = cmd_vel; }
+
+void BaseController::updateOdometry(float dT) {
+  try {
+    Eigen::Vector4f speed_radps;
+    speed_radps(0) = _drives.at(BASE_DRIVE_FRONT_LEFT)->getCurrentSpeedRPM();
+    speed_radps(1) = _drives.at(BASE_DRIVE_REAR_LEFT)->getCurrentSpeedRPM();
+    speed_radps(2) = _drives.at(BASE_DRIVE_FRONT_RIGHT)->getCurrentSpeedRPM();
+    speed_radps(3) = _drives.at(BASE_DRIVE_REAR_RIGHT)->getCurrentSpeedRPM();
+    speed_radps *= ((2.0F * M_PI) / 60.0F);
+
+    this->_velocity = _chassis_params.kinematic_matrix_inv * speed_radps;
+    this->_velocity(2) *= -1.0F;
+
+    this->_position += this->_velocity * dT;
+
+  } catch (can_exception& e) {
+    this->_velocity = Eigen::Vector3f();
+
+    setErrorState("Error updating odometry!");
+  }
+}
 
 void BaseController::stepStateMachine() {
   runDriveStsHandling();
@@ -191,6 +217,9 @@ void BaseController::buildKinematic() {
   _chassis_params.kinematic_matrix << 1.0f, 0.0f, l_squared / (2.0f * l_y), 1.0f, 0.0f, l_squared / (2.0f * l_y), -1.0f,
       0.0f, l_squared / (2.0f * l_y), -1.0f, 0.0f, l_squared / (2.0f * l_y);
   _chassis_params.kinematic_matrix *= 1.0f / wheel_radius;
+
+  _chassis_params.kinematic_matrix_inv =
+      _chassis_params.kinematic_matrix.completeOrthogonalDecomposition().pseudoInverse();
 }
 
 void BaseController::runDriveStsHandling() {
@@ -420,7 +449,7 @@ void BaseController::updateAccelLimit() {
 }
 
 void BaseController::updateCmdVel() {
-  Eigen::Vector3f velocity_cmd(_cmd_vel_req.getLinearVel(), 0.0F, _cmd_vel_req.getAngularVel());
+  Eigen::Vector3f velocity_cmd(_cmd_vel_req.getLinearVel(), 0.0F, -_cmd_vel_req.getAngularVel());
   Eigen::VectorXf radps = _chassis_params.kinematic_matrix * velocity_cmd.matrix();
 
   const float speed_left = radps(0) * (60.0F / (2.0F * M_PI));

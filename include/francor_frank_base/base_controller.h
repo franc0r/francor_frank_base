@@ -85,6 +85,7 @@ struct BaseChassisParams {
   float wheel_separation_y_m = {0.0};
 
   Eigen::MatrixXf kinematic_matrix = {};
+  Eigen::MatrixXf kinematic_matrix_inv = {};
 };
 
 class BaseController {
@@ -96,9 +97,11 @@ class BaseController {
   void enableDrives();
   void disableDrives();
   void resetErrors();
+  void resetOdometry();
 
   void setAccelLimit(float accel_limit);
   void setCmdVel(BaseCmdVel cmd_vel);
+  void updateOdometry(float dT);
 
   void stepStateMachine();
 
@@ -150,6 +153,9 @@ class BaseController {
 
   BaseCmdVel _cmd_vel_req = {};
   BaseCmdVel _cmd_vel_actv = {};
+
+  Eigen::Vector3f _velocity = {};
+  Eigen::Vector3f _position = {};
 
   const std::string _logger = {"FrancorBaseController"};
 };
