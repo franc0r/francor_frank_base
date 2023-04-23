@@ -24,6 +24,7 @@ find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(francor REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(Eigen3 REQUIRED NO_MODULE)
 
 add_executable(frank_base 
   src/frank_base.cpp
@@ -34,7 +35,7 @@ target_include_directories(frank_base PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(frank_base francor-drive)
+target_link_libraries(frank_base francor-drive Eigen3::Eigen)
 ament_target_dependencies(frank_base rclcpp std_msgs std_srvs geometry_msgs)
 
 install(TARGETS frank_base

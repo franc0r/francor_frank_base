@@ -15,6 +15,7 @@
 #include <francor_can/socketcan.h>
 #include <francor_drive/rmd_x8_drive.h>
 
+#include <Eigen/Dense>
 #include <chrono>
 #include <string>
 
@@ -82,6 +83,8 @@ struct BaseChassisParams {
   float wheel_diameter_m = {0.0};
   float wheel_separation_x_m = {0.0};
   float wheel_separation_y_m = {0.0};
+
+  Eigen::MatrixXf kinematic_matrix = {};
 };
 
 class BaseController {
@@ -105,6 +108,8 @@ class BaseController {
   bool allDrivesConnected();
 
  private:
+  void buildKinematic();
+
   void runDriveStsHandling();
   void setNewState(BaseState state);
 

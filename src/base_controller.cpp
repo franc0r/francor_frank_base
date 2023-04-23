@@ -73,7 +73,9 @@ BaseConfig::BaseConfig(std::string& can, bool auto_enable_on_start, bool auto_en
       error_heal_time_s(error_heal_time_s) {}
 
 BaseController::BaseController(BaseConfig& config, BaseChassisParams& chassis_params)
-    : _config(config), _chassis_params(chassis_params) {}
+    : _config(config), _chassis_params(chassis_params) {
+  this->buildKinematic();
+}
 
 BaseController::~BaseController() {
   if (_can_if) {
@@ -177,6 +179,18 @@ bool BaseController::allDrivesConnected() {
   }
 
   return drives_connected;
+}
+
+void BaseController::buildKinematic() {
+  const float l_x = _chassis_params.wheel_separation_x_m;
+  const float l_y = _chassis_params.wheel_separation_y_m;
+  const float wheel_radius = _chassis_params.wheel_diameter_m * 0.5F;
+  const float l_squared = l_x * l_x + l_y * l_y;
+
+  _chassis_params.kinematic_matrix.resize(4, 3);
+  _chassis_params.kinematic_matrix << 1.0f, 0.0f, l_squared / (2.0f * l_y), 1.0f, 0.0f, l_squared / (2.0f * l_y), -1.0f,
+      0.0f, l_squared / (2.0f * l_y), -1.0f, 0.0f, l_squared / (2.0f * l_y);
+  _chassis_params.kinematic_matrix *= 1.0f / wheel_radius;
 }
 
 void BaseController::runDriveStsHandling() {
@@ -406,15 +420,11 @@ void BaseController::updateAccelLimit() {
 }
 
 void BaseController::updateCmdVel() {
-  const float mps_to_rpm = 60.0F / (_chassis_params.wheel_diameter_m * M_PI);
-  const float rps_to_rpm = 12.0F * ((_chassis_params.wheel_separation_x_m + _chassis_params.wheel_separation_y_m) /
-                                    _chassis_params.wheel_diameter_m);
+  Eigen::Vector3f velocity_cmd(_cmd_vel_req.getLinearVel(), 0.0F, _cmd_vel_req.getAngularVel());
+  Eigen::VectorXf radps = _chassis_params.kinematic_matrix * velocity_cmd.matrix();
 
-  const float linear_speed = _cmd_vel_req.getLinearVel() * mps_to_rpm;
-  const float angular_speed = _cmd_vel_req.getAngularVel() * rps_to_rpm;
-
-  const float speed_left = linear_speed - angular_speed;
-  const float speed_right = -(linear_speed + angular_speed);
+  const float speed_left = radps(0) * (60.0F / (2.0F * M_PI));
+  const float speed_right = radps(2) * (60.0F / (2.0F * M_PI));
 
   try {
     // if (_cmd_vel_actv != _cmd_vel_req) {
