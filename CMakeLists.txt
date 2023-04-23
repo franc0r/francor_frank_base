@@ -26,6 +26,7 @@ find_package(francor REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(Eigen3 REQUIRED NO_MODULE)
+find_package(tf2_ros REQUIRED NO_MODULE)
 
 add_executable(frank_base 
   src/frank_base.cpp
@@ -37,9 +38,32 @@ target_include_directories(frank_base PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(frank_base francor-drive Eigen3::Eigen)
-ament_target_dependencies(frank_base rclcpp std_msgs std_srvs geometry_msgs nav_msgs)
+ament_target_dependencies(frank_base 
+                                      rclcpp std_msgs 
+                                      std_srvs 
+                                      geometry_msgs 
+                                      nav_msgs
+                                      tf2_ros)
 
 install(TARGETS frank_base
+  DESTINATION lib/${PROJECT_NAME})
+
+add_executable(odom_to_tf 
+  src/odom_to_tf.cpp
+)
+
+target_include_directories(odom_to_tf PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+target_link_libraries(odom_to_tf)
+ament_target_dependencies(odom_to_tf 
+                                      rclcpp std_msgs 
+                                      std_srvs 
+                                      geometry_msgs 
+                                      nav_msgs
+                                      tf2_ros)
+install(TARGETS odom_to_tf
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

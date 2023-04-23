@@ -26,4 +26,14 @@ def generate_launch_description():
             ],
             arguments=['--ros-args', '--log-level', 'info']
         ),
+        Node(
+            package='francor_frank_base',
+            namespace='francor_frank_base',
+            executable='odom_to_tf',
+            name='odom_to_tf',
+            output="screen",
+            emulate_tty=True,
+            parameters=[],
+            arguments=['--ros-args', '--log-level', 'info']
+        )
     ])
