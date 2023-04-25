@@ -208,9 +208,9 @@ void FrankBase::publish() {
         RCLCPP_WARN(this->get_logger(), "Error publishing drive ['%i'] state", idx);  // NOLINT
       }
     }
-
-    _odom_pub->publish(_odom_msg);
   }
+
+  _odom_pub->publish(_odom_msg);
 }
 
 void FrankBase::createSubscriber() {
