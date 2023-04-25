@@ -23,6 +23,7 @@ def generate_launch_description():
                     "wheel_separation_x_m": 0.41,
                     "wheel_separation_y_m": 0.53,
                     "odom_fac": 1.3,
+                    "odom_stamp_offset": 0.0,
                 }
             ],
             arguments=['--ros-args', '--log-level', 'info']
@@ -34,7 +35,11 @@ def generate_launch_description():
             name='odom_to_tf',
             output="screen",
             emulate_tty=True,
-            parameters=[],
+            parameters=[
+                {
+                    "odom_stamp_offset: 0.0",
+                }
+            ],
             arguments=['--ros-args', '--log-level', 'info']
         )
     ])

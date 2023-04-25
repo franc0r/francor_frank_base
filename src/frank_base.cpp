@@ -90,6 +90,7 @@ class FrankBase : public rclcpp::Node {
   float _accel_limit;
   bool _auto_enable_on_start;
   bool _auto_enable;
+  float _odom_stamp_offset;
 };
 
 FrankBase::FrankBase() : Node("frank_base") {
@@ -122,6 +123,7 @@ void FrankBase::declareParams() {
   this->declare_parameter<float>("wheel_separation_x_m", 1.0);
   this->declare_parameter<float>("wheel_separation_y_m", 1.0);
   this->declare_parameter<float>("odom_fac", 1.0);
+  this->declare_parameter<float>("odom_stamp_offset", 0.0);
 }
 
 void FrankBase::readParams() {
@@ -136,6 +138,7 @@ void FrankBase::readParams() {
   this->get_parameter("wheel_separation_x_m", _chassis_params.wheel_separation_x_m);
   this->get_parameter("wheel_separation_y_m", _chassis_params.wheel_separation_y_m);
   this->get_parameter("odom_fac", _chassis_params.odom_factor);
+  this->get_parameter("odom_stamp_offset", _odom_stamp_offset);
 
   RCLCPP_INFO(this->get_logger(), "CAN %s", _can_name.c_str());                                              // NOLINT
   RCLCPP_INFO(this->get_logger(), "Cmd Velocity Timeout %f", _cmd_vel_max_timeout_s);                        // NOLINT
@@ -281,7 +284,8 @@ void FrankBase::updateOdom() {
   const Eigen::Vector3f velocity = _base_controller->getVelocity();
   const Eigen::Vector3f pose = _base_controller->getPose();
 
-  _odom_msg.header.stamp = this->get_clock()->now();
+  const auto stamp_offset = rclcpp::Duration::from_seconds(_odom_stamp_offset);
+  _odom_msg.header.stamp = this->get_clock()->now() + stamp_offset;
   _odom_msg.header.frame_id = "odom";
   _odom_msg.child_frame_id = "base_footprint";
   _odom_msg.twist.twist.linear.x = velocity.x();
