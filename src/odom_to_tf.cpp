@@ -7,9 +7,6 @@
 class OdomToTf : public rclcpp::Node {
  public:
   OdomToTf() : Node("francor_odom_to_tf_node") {
-    this->declare_parameter("odom_stamp_offset", 0.0);
-    _odom_stamp_offset = this->get_parameter("odom_stamp_offset").as_double();
-
     _clock = this->get_clock();
     _tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
@@ -23,8 +20,6 @@ class OdomToTf : public rclcpp::Node {
     geometry_msgs::msg::TransformStamped t;
 
     t.header = msg->header;
-    t.header.stamp = this->get_clock()->now() + rclcpp::Duration::from_seconds(_odom_stamp_offset);
-
     t.child_frame_id = msg->child_frame_id;
 
     t.transform.translation.x = msg->pose.pose.position.x;
@@ -46,7 +41,6 @@ class OdomToTf : public rclcpp::Node {
   rclcpp::Logger _logger{rclcpp::get_logger("francor_odom_to_tf_node")};
 
   rclcpp::Clock::SharedPtr _clock;
-  double _odom_stamp_offset;
 };
 
 int main(int argc, char* argv[]) {
